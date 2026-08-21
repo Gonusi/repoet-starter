@@ -1,0 +1,15 @@
+{
+  "name": "starter",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "eleventy",
+    "dev": "eleventy --serve",
+    "test": "echo 'starter: no tests yet (WP8)'",
+    "lint": "echo 'starter: no lint'"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.0.0"
+  }
+}

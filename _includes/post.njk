@@ -1,0 +1,8 @@
+---
+layout: layout.njk
+---
+<article>
+  {% if title %}<h1>{{ title }}</h1>{% endif %}
+  <p class="meta">{{ date | readableDate }}{% if tags %} · {{ tags | join(', ') }}{% endif %}</p>
+  {{ content | safe }}
+</article>
