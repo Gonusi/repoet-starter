@@ -1,9 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ blog.language or 'en' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title or blog.title }}</title>
+  <meta name="description" content="{{ description or blog.description }}">
+  {%- if blog.author %}
+  <meta name="author" content="{{ blog.author }}">
+  {%- endif %}
+  {%- if site.url %}
+  <link rel="canonical" href="{{ site.url }}{{ page.url }}">
+  {%- endif %}
+  <link rel="icon" href="{{ '/favicon.svg' | url }}" type="image/svg+xml">
+  <link rel="alternate" type="application/atom+xml" title="{{ blog.title }}" href="{{ '/feed.xml' | url }}">
   {# Theme adapted from no-style-please (MIT) — see NOTICE. Modest on purpose,
      and matched to Repoet's own design language: two voices (Literata for the
      words, IBM Plex Mono for the machinery), paper/ink/green. Yours to edit. #}
@@ -21,7 +30,9 @@
     body { max-width: 40rem; margin: 0 auto; padding: 1.6rem 1.2rem 4rem;
            font-family: var(--serif); font-size: 17px; line-height: 1.62;
            color: var(--ink); background: var(--paper); }
-    header { padding-bottom: 0.9rem; border-bottom: 1px solid var(--rule); margin-bottom: 2rem; }
+    header { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap;
+             padding-bottom: 0.9rem; border-bottom: 1px solid var(--rule); margin-bottom: 2rem; }
+    .tagline { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft); }
     header a { font-family: var(--serif); font-style: italic; font-weight: 600;
                font-size: 21px; color: var(--ink); text-decoration: none; }
     header a:hover { color: var(--green-deep); }
@@ -44,7 +55,12 @@
   </style>
 </head>
 <body>
-  <header><a href="{{ '/' | url }}">{{ blog.title }}</a></header>
+  <header>
+    <a href="{{ '/' | url }}">{{ blog.title }}</a>
+    {%- if blog.showDescription and blog.description %}
+    <span class="tagline">{{ blog.description }}</span>
+    {%- endif %}
+  </header>
   <main>{{ content | safe }}</main>
 </body>
 </html>

@@ -3,6 +3,6 @@ layout: layout.njk
 ---
 <article>
   {% if title %}<h1>{{ title }}</h1>{% endif %}
-  <p class="meta">{{ date | readableDate }}{% if tags %} · {{ tags | join(', ') }}{% endif %}</p>
+  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% if tags %} · {{ tags | join(', ') }}{% endif %}</p>
   {{ content | safe }}
 </article>

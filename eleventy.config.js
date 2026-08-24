@@ -2,6 +2,7 @@
 // Everything here belongs to YOU after creation; Repoet only writes inside
 // posts/** and blog.json (docs/content-contract/repository-layout.md).
 import { readFileSync, globSync } from 'node:fs';
+import { feedPlugin } from '@11ty/eleventy-plugin-rss';
 
 import { resolvePermalinks, shortIdFromPath } from './_lib/permalinks.js';
 
@@ -17,6 +18,26 @@ function readSlug(inputPath) {
 export default function (eleventyConfig) {
   const blog = JSON.parse(readFileSync(new URL('./blog.json', import.meta.url), 'utf-8'));
   eleventyConfig.addGlobalData('blog', blog);
+
+  // The blog's absolute URL. The deploy workflow injects it (configure-pages
+  // base_url), so custom domains just work and nothing goes stale. Empty in
+  // local builds: absolute-URL features degrade gracefully.
+  const siteUrl = (process.env.SITE_URL || '').replace(/\/$/, '');
+  eleventyConfig.addGlobalData('site', { url: siteUrl });
+
+  // Atom feed — the distribution channel that matters for a developer blog.
+  eleventyConfig.addPlugin(feedPlugin, {
+    type: 'atom',
+    outputPath: '/feed.xml',
+    collection: { name: 'posts', limit: 20 },
+    metadata: {
+      language: blog.language || 'en',
+      title: blog.title,
+      subtitle: blog.description || '',
+      base: siteUrl ? `${siteUrl}/` : 'https://localhost/',
+      author: { name: blog.author || blog.title },
+    },
+  });
 
   // Resolve slug collisions once, up front, so a duplicate slug never
   // hard-fails the build (docs/content-contract/post-identity.md). Posts read
@@ -36,8 +57,10 @@ export default function (eleventyConfig) {
   // Post attachments live beside index.md and are copied through untouched.
   eleventyConfig.addPassthroughCopy('posts/**/*.{jpg,jpeg,png,gif,svg,webp,pdf,zip,gpx,tcx,csv,json}');
   eleventyConfig.addPassthroughCopy('assets');
-  eleventyConfig.addPassthroughCopy('fonts'); // self-hosted — the blog makes no third-party requests
+  eleventyConfig.addPassthroughCopy('fonts');
+  eleventyConfig.addPassthroughCopy('favicon.svg'); // replace with your own — it is yours // self-hosted — the blog makes no third-party requests
 
+  eleventyConfig.addFilter('isoDate', (value) => new Date(value).toISOString());
   eleventyConfig.addFilter('readableDate', (value) =>
     new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(
       new Date(value),

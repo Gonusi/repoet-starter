@@ -53,6 +53,7 @@ jobs:
         if: steps.pages.outputs.enabled == 'true'
         env:
           PATH_PREFIX: ${{ steps.pagesconf.outputs.base_path }}
+          SITE_URL: ${{ steps.pagesconf.outputs.base_url }}
       - uses: actions/upload-pages-artifact@v5
         if: steps.pages.outputs.enabled == 'true'
         with:
