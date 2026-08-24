@@ -1,0 +1,24 @@
+{
+  "version": "2026-08-24.d04e8a8",
+  "files": {
+    ".github/workflows/deploy.yml": "25ad91bf7b7d161e1580b4bd29b0a7bbd37ab47e",
+    ".gitignore": "24c994505350cba2eedd447b5bb3dc28fe83f5d8",
+    "NOTICE": "1dc0e7272adb3d060a16c284125980a2ce796f1d",
+    "_includes/layout.njk": "226871d0ff4cc6c977fbf88347496e294fd84e20",
+    "_includes/post.njk": "c804aa6405ad9b0e698d41c0c656391864861d98",
+    "_lib/permalinks.js": "2070300e8cb6e90e0205a4c55d6260887ca29a1f",
+    "_lib/permalinks.test.mjs": "3e9b18c67544deb2dedca15cce78080a9d310f15",
+    "_lib/seo.test.mjs": "51d84912b746d7979c487b6bf7f253494b9d1f2a",
+    "_lib/workflow.test.mjs": "c4355e355015a22fd46c07f1783bfd70a080db89",
+    "eleventy.config.js": "78391a1c23179ae7384808fb61c1b35b044fe624",
+    "fonts/IBMPlexMono-400-normal.woff2": "52b6c7595dd5e2106676e7c52fcff18539607879",
+    "fonts/Literata-400-italic.woff2": "baf94f17451ae63971054e64f635609e476ff198",
+    "fonts/Literata-400-normal.woff2": "2e8086d09b347df7762ed5dc50161bdfa55b37df",
+    "fonts/Literata-600-normal.woff2": "2e8086d09b347df7762ed5dc50161bdfa55b37df",
+    "index.njk": "cad3476a5fd31b3bf120fbed2a5b7d77a76797b6",
+    "package-lock.json": "7c2710bdd77a21294d2359da316adf172b56f854",
+    "package.json": "446aa166f97ee04298d6410a9051876997d5e825",
+    "robots.njk": "aa47315e9de5e37381de194fe446b50ae986b9af",
+    "sitemap.njk": "5ea8f7534968386c120eb628a132c216b6e96a47"
+  }
+}
