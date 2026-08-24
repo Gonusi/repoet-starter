@@ -15,27 +15,55 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.pages.outputs.enabled }}
     steps:
-      - uses: actions/checkout@v4 # shallow by default — keep it that way
-      - uses: actions/configure-pages@v5
+      - uses: actions/checkout@v5 # shallow by default — keep it that way
+      # A brand-new blog builds the moment it is created — before Pages has
+      # been switched on — so configuring Pages here would 404 and email you
+      # "your build failed" on day one. Ask first, and skip quietly instead:
+      # Repoet enables Pages when you connect the blog and pushes an empty
+      # commit to run this again for real.
+      - name: Is Pages enabled yet?
         id: pages
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "authorization: Bearer ${{ github.token }}" \
+            -H "accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages")
+          if [ "$code" = "200" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Pages is not enabled yet, so there is nothing to deploy."
+            echo "Connect this blog in Repoet (or Settings → Pages → GitHub Actions)"
+            echo "and the next push will build the site."
+          fi
+      - uses: actions/configure-pages@v6
+        if: steps.pages.outputs.enabled == 'true'
+        id: pagesconf
       - uses: actions/setup-node@v4
+        if: steps.pages.outputs.enabled == 'true'
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+        if: steps.pages.outputs.enabled == 'true'
       - run: npx @11ty/eleventy
+        if: steps.pages.outputs.enabled == 'true'
         env:
-          PATH_PREFIX: ${{ steps.pages.outputs.base_path }}
-      - uses: actions/upload-pages-artifact@v3
+          PATH_PREFIX: ${{ steps.pagesconf.outputs.base_path }}
+      - uses: actions/upload-pages-artifact@v5
+        if: steps.pages.outputs.enabled == 'true'
         with:
           path: _site
   deploy:
     needs: build
+    if: needs.build.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
         id: deployment
