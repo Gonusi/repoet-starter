@@ -1,6 +1,9 @@
 ---
 layout: layout.njk
 ---
+{%- if collections.posts | length == 0 %}
+<p class="empty">No posts yet.</p>
+{%- endif %}
 <ul class="posts">
   {%- for post in collections.posts %}
   <li>

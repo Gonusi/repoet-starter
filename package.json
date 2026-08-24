@@ -6,7 +6,7 @@
   "scripts": {
     "build": "eleventy",
     "dev": "eleventy --serve",
-    "test": "echo 'starter: no tests yet (WP8)'",
+    "test": "node --test \"_lib/**/*.test.mjs\"",
     "lint": "echo 'starter: no lint'"
   },
   "devDependencies": {
