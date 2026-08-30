@@ -1,8 +1,19 @@
 ---
 layout: layout.njk
+ogType: article
 ---
 <article>
   {% if title %}<h1>{{ title }}</h1>{% endif %}
-  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% if tags %} · {{ tags | join(', ') }}{% endif %}</p>
+  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% if tags %} · {{ tags | join(', ') }}{% endif %}{% if blog.author %} · {{ blog.author }}{% endif %}</p>
   {{ content | safe }}
 </article>
+{# Machine-readable twin of the article, for search results. #}
+<script type="application/ld+json">{{ {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: title or (content | striptags | truncate(80, true, '…')),
+  datePublished: date | isoDate,
+  description: description or blog.description,
+  url: site.url + page.url if site.url else page.url,
+  author: { '@type': 'Person', name: blog.author or blog.title }
+} | jsonld | safe }}</script>

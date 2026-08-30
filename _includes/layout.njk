@@ -13,6 +13,32 @@
   {%- endif %}
   <link rel="icon" href="{{ '/favicon.svg' | url }}" type="image/svg+xml">
   <link rel="alternate" type="application/atom+xml" title="{{ blog.title }}" href="{{ '/feed.xml' | url }}">
+  {#- How this page unfurls when shared (Slack, iMessage, X, LinkedIn).
+      Posts set ogType: article; everything else is a website. The share image
+      is the post's first image unless frontmatter `image:` or blog.json
+      `socialImage` (a root path like "/assets/social.png") says otherwise —
+      and when there is no image, no og:image: a text-only preview is honest,
+      a broken image URL is not. -#}
+  <meta property="og:type" content="{{ ogType or 'website' }}">
+  <meta property="og:title" content="{{ title or blog.title }}">
+  <meta property="og:description" content="{{ description or blog.description }}">
+  <meta property="og:site_name" content="{{ blog.title }}">
+  {%- if site.url %}
+  <meta property="og:url" content="{{ site.url }}{{ page.url }}">
+  {%- endif %}
+  {%- if ogType == 'article' and date %}
+  <meta property="article:published_time" content="{{ date | isoDate }}">
+  {%- endif %}
+  {%- if ogType == 'article' and updated %}
+  <meta property="article:modified_time" content="{{ updated | isoDate }}">
+  {%- endif %}
+  {%- set shareImage = (image or (content | firstImage) or blog.socialImage) | absUrl(page.url) %}
+  {%- if shareImage %}
+  <meta property="og:image" content="{{ shareImage }}">
+  <meta name="twitter:card" content="summary_large_image">
+  {%- else %}
+  <meta name="twitter:card" content="summary">
+  {%- endif %}
   {# Theme adapted from no-style-please (MIT) — see NOTICE. Modest on purpose,
      and matched to Repoet's own design language: two voices (Literata for the
      words, IBM Plex Mono for the machinery), paper/ink/green. Yours to edit. #}

@@ -10,7 +10,9 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node
 
 const SITE = 'https://example-owner.github.io/blog';
 const POST_DIR = 'posts/2026/08/zzseo-probe';
-let indexHtml, postHtml, feedXml, sitemapXml, robotsTxt, blogJsonBackup;
+const IMG_POST_DIR = 'posts/2026/08/zzseo-image';
+const FMIMG_POST_DIR = 'posts/2026/08/zzseo-fmimg';
+let indexHtml, postHtml, imagePostHtml, fmImagePostHtml, feedXml, sitemapXml, robotsTxt, blogJsonBackup;
 
 before(() => {
   blogJsonBackup = readFileSync('blog.json', 'utf-8');
@@ -27,9 +29,24 @@ before(() => {
     'date: 2026-08-24T10:00:00+03:00', "description: 'One specific post summary'",
     '---', 'Body text.', '',
   ].join('\n'));
+  // Image probes: one picks up the first body image, one overrides via frontmatter.
+  mkdirSync(IMG_POST_DIR, { recursive: true });
+  writeFileSync(`${IMG_POST_DIR}/photo.jpg`, 'notreallyajpeg');
+  writeFileSync(`${IMG_POST_DIR}/index.md`, [
+    '---', 'id: seo-image', 'title: Image post', 'slug: zzseo-image',
+    'date: 2026-08-25T10:00:00+03:00', '---', '![A photo](photo.jpg)', 'Body.', '',
+  ].join('\n'));
+  mkdirSync(FMIMG_POST_DIR, { recursive: true });
+  writeFileSync(`${FMIMG_POST_DIR}/cover.png`, 'notreallyapng');
+  writeFileSync(`${FMIMG_POST_DIR}/index.md`, [
+    '---', 'id: seo-fmimg', 'title: Cover post', 'slug: zzseo-fmimg',
+    'date: 2026-08-26T10:00:00+03:00', 'image: cover.png', '---', '![Other](photo.jpg)', '',
+  ].join('\n'));
   execSync('npx @11ty/eleventy', { env: { ...process.env, SITE_URL: SITE }, stdio: 'pipe' });
   indexHtml = readFileSync('_site/index.html', 'utf-8');
   postHtml = readFileSync('_site/zzseo-probe/index.html', 'utf-8');
+  imagePostHtml = readFileSync('_site/zzseo-image/index.html', 'utf-8');
+  fmImagePostHtml = readFileSync('_site/zzseo-fmimg/index.html', 'utf-8');
   feedXml = existsSync('_site/feed.xml') ? readFileSync('_site/feed.xml', 'utf-8') : '';
   sitemapXml = existsSync('_site/sitemap.xml') ? readFileSync('_site/sitemap.xml', 'utf-8') : '';
   robotsTxt = existsSync('_site/robots.txt') ? readFileSync('_site/robots.txt', 'utf-8') : '';
@@ -38,6 +55,8 @@ before(() => {
 after(() => {
   writeFileSync('blog.json', blogJsonBackup);
   rmSync(POST_DIR, { recursive: true, force: true });
+  rmSync(IMG_POST_DIR, { recursive: true, force: true });
+  rmSync(FMIMG_POST_DIR, { recursive: true, force: true });
 });
 
 test('the page language comes from settings, never hardcoded English', () => {
@@ -86,4 +105,64 @@ test('the description appears beside the blog title when the setting is on', () 
 
 test('author is declared', () => {
   assert.match(postHtml, /<meta name="author" content="Kasparas">/);
+});
+
+// ——— Tier 2: how the blog looks when SHARED (PROGRESS, 2026-08-30) ———
+// Link previews (Slack, iMessage, X, LinkedIn) read Open Graph; search reads
+// JSON-LD. A developer blog lives or dies by how its links unfurl.
+
+test('a post unfurls as an article: og:type, title, description, absolute url', () => {
+  assert.match(postHtml, /<meta property="og:type" content="article">/);
+  assert.match(postHtml, /<meta property="og:title" content="Probe post">/);
+  assert.match(postHtml, /<meta property="og:description" content="One specific post summary">/);
+  assert.match(postHtml, new RegExp(`<meta property="og:url" content="${SITE}/zzseo-probe/">`));
+  assert.match(postHtml, /<meta property="og:site_name" content="Probe blog">/);
+});
+
+test('the home page unfurls as a website, not an article', () => {
+  assert.match(indexHtml, /<meta property="og:type" content="website">/);
+  assert.match(indexHtml, /<meta property="og:title" content="Probe blog">/);
+});
+
+test('published time is the post date; modified time only exists when the post says so', () => {
+  // UTC, same convention as the visible <time datetime> (isoDate filter).
+  assert.match(postHtml, /<meta property="article:published_time" content="2026-08-24T07:00:00.000Z">/);
+  assert.doesNotMatch(postHtml, /article:modified_time/);
+});
+
+test('a post with no image says so honestly — no og:image pointing at nothing', () => {
+  assert.doesNotMatch(postHtml, /og:image/);
+  assert.match(postHtml, /<meta name="twitter:card" content="summary">/);
+});
+
+test('the first image in a post becomes its social image, absolute, and upgrades the card', () => {
+  assert.match(imagePostHtml, new RegExp(`<meta property="og:image" content="${SITE}/zzseo-image/photo.jpg">`));
+  assert.match(imagePostHtml, /<meta name="twitter:card" content="summary_large_image">/);
+});
+
+test('frontmatter image wins over the first image in the body', () => {
+  assert.match(fmImagePostHtml, new RegExp(`<meta property="og:image" content="${SITE}/zzseo-fmimg/cover.png">`));
+});
+
+test('a post carries BlogPosting JSON-LD with headline, date and author', () => {
+  const m = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(postHtml);
+  assert.ok(m, 'post has a JSON-LD block');
+  const ld = JSON.parse(m[1]);
+  assert.equal(ld['@type'], 'BlogPosting');
+  assert.equal(ld.headline, 'Probe post');
+  assert.equal(ld.datePublished, '2026-08-24T07:00:00.000Z');
+  assert.equal(ld.author['@type'], 'Person');
+  assert.equal(ld.author.name, 'Kasparas');
+});
+
+test('the home page carries WebSite JSON-LD naming the author as a Person', () => {
+  const m = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(indexHtml);
+  assert.ok(m, 'home has a JSON-LD block');
+  const ld = JSON.parse(m[1]);
+  assert.equal(ld['@type'], 'WebSite');
+  assert.equal(ld.author.name, 'Kasparas');
+});
+
+test('the author is on the page for readers, not only in machine metadata', () => {
+  assert.match(postHtml, /<p class="meta">[\s\S]*Kasparas[\s\S]*<\/p>/);
 });

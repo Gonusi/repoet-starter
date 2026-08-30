@@ -14,3 +14,12 @@ layout: layout.njk
   </li>
   {%- endfor %}
 </ul>
+{# The site itself, for search: one WebSite, one Person. #}
+<script type="application/ld+json">{{ {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: blog.title,
+  description: blog.description,
+  url: site.url + '/' if site.url else '/',
+  author: { '@type': 'Person', name: blog.author or blog.title }
+} | jsonld | safe }}</script>

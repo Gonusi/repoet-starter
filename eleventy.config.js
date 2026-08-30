@@ -61,6 +61,25 @@ export default function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy('favicon.svg'); // replace with your own — it is yours // self-hosted — the blog makes no third-party requests
 
   eleventyConfig.addFilter('isoDate', (value) => new Date(value).toISOString());
+
+  // ——— Tier 2 SEO: link unfurls (PROGRESS, 2026-08-30) ———
+  // The share image, zero-config: a post's first body image is usually the
+  // right one. Frontmatter `image:` overrides; blog.json `socialImage` (a
+  // root path like "/assets/social.png") is the site-wide fallback.
+  eleventyConfig.addFilter('firstImage', (content) => {
+    const m = /<img[^>]+src="([^"]+)"/.exec(content || '');
+    return m ? m[1] : '';
+  });
+  // Crawlers ignore relative og:image/og:url — make repo paths absolute.
+  eleventyConfig.addFilter('absUrl', (src, pageUrl) => {
+    if (!src || !siteUrl) return '';
+    if (/^https?:\/\//.test(src)) return src;
+    return src.startsWith('/') ? `${siteUrl}${src}` : `${siteUrl}${pageUrl}${src}`;
+  });
+  // `</` must not terminate the script block a JSON-LD object lives in.
+  eleventyConfig.addFilter('jsonld', (obj) =>
+    JSON.stringify(obj).replaceAll('</', '<\\/'),
+  );
   eleventyConfig.addFilter('readableDate', (value) =>
     new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(
       new Date(value),
