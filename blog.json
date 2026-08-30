@@ -1,7 +1,7 @@
 {
-  "title": "My blog",
-  "description": "",
-  "language": "en",
-  "author": "",
-  "showDescription": false
+  "title": "Probe blog",
+  "description": "Small notes about running",
+  "language": "lt",
+  "author": "Kasparas",
+  "showDescription": true
 }

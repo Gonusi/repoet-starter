@@ -1,0 +1,22 @@
+---
+layout: layout.njk
+pagination:
+  data: collections.tagList
+  size: 1
+  alias: tag
+permalink: "/tags/{{ tag.name | slugify }}/"
+eleventyExcludeFromCollections: true
+noindex: false
+---
+<h1>{{ tag.name }}</h1>
+<ul class="posts">
+  {%- for post in tag.posts %}
+  <li>
+    <a href="{{ post.url | url }}">
+      {% if post.data.title %}<strong>{{ post.data.title }}</strong>{% else %}{{ post.content | striptags | truncate(120) }}{% endif %}
+    </a>
+    <div class="meta">{{ post.data.date | readableDate }}</div>
+  </li>
+  {%- endfor %}
+</ul>
+<p class="meta"><a href="{{ '/' | url }}">‹ All posts</a></p>

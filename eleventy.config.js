@@ -27,6 +27,14 @@ export default function (eleventyConfig) {
 
   // Atom feed — the distribution channel that matters for a developer blog.
   eleventyConfig.addPlugin(feedPlugin, {
+    // The feed plugin registers Eleventy's HtmlBase plugin TWICE (itself and
+    // via its inner rssPlugin) — with a real pathPrefix every root-relative
+    // link got the prefix twice (/blog/blog/…; found 2026-08-30, the Tier 1
+    // tests never built with a prefix). baseHref '/' disables its global
+    // transform on both registrations; templates prefix once via `| url`,
+    // and the FEED still absolutizes through its explicit per-render base.
+    htmlBasePluginOptions: { baseHref: '/' },
+    rssPluginOptions: { htmlBasePluginOptions: { baseHref: '/' } },
     type: 'atom',
     outputPath: '/feed.xml',
     collection: { name: 'posts', limit: 20 },
@@ -91,6 +99,30 @@ export default function (eleventyConfig) {
       .getFilteredByGlob('posts/**/index.md')
       .sort((a, b) => (a.data.date < b.data.date ? 1 : -1)),
   );
+
+  // ——— Tier 3 SEO (PROGRESS, 2026-08-30) ———
+  // One entry per tag: [name, posts…], newest first — drives /tags/<slug>/.
+  eleventyConfig.addCollection('tagList', (api) => {
+    const byTag = new Map();
+    for (const post of api.getFilteredByGlob('posts/**/index.md')) {
+      for (const tag of post.data.tags ?? []) {
+        if (!byTag.has(tag)) byTag.set(tag, []);
+        byTag.get(tag).push(post);
+      }
+    }
+    return [...byTag.entries()]
+      .map(([name, posts]) => ({
+        name,
+        posts: posts.sort((a, b) => (a.data.date < b.data.date ? 1 : -1)),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  // First image's alt — an og:image nobody can see still gets described.
+  eleventyConfig.addFilter('firstImageAlt', (content) => {
+    const m = /<img[^>]+alt="([^"]*)"/.exec(content || '');
+    return m ? m[1] : '';
+  });
 
   return {
     dir: { input: '.', includes: '_includes', output: '_site' },

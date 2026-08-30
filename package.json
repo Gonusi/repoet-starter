@@ -6,7 +6,7 @@
   "scripts": {
     "build": "eleventy",
     "dev": "eleventy --serve",
-    "test": "node --test \"_lib/**/*.test.mjs\"",
+    "test": "node --test --test-concurrency=1 \"_lib/**/*.test.mjs\"",
     "lint": "echo 'starter: no lint'"
   },
   "devDependencies": {
