@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-30.4f9a5ef",
+  "version": "2026-08-30.ff26797",
   "files": {
     ".github/workflows/deploy.yml": "25ad91bf7b7d161e1580b4bd29b0a7bbd37ab47e",
     ".gitignore": "24c994505350cba2eedd447b5bb3dc28fe83f5d8",
@@ -7,7 +7,7 @@
     "NOTICE": "1dc0e7272adb3d060a16c284125980a2ce796f1d",
     "_includes/layout.njk": "61b2c5ef30b8bad8ee63efa120a825c06deff532",
     "_includes/post.njk": "5371dbe9493ddaa7e143d8eb00eeed1e4858834e",
-    "_lib/empty.test.mjs": "1bb2fd6c733dbd8c4e6f3d9f489a4766b153cb1b",
+    "_lib/empty.test.mjs": "aef4579bbcef23ab514a2e664f1c8743c2a0e527",
     "_lib/permalinks.js": "2070300e8cb6e90e0205a4c55d6260887ca29a1f",
     "_lib/permalinks.test.mjs": "3e9b18c67544deb2dedca15cce78080a9d310f15",
     "_lib/seo.test.mjs": "dee0f5fda62691eca863d9a7ad0f51776273526f",
