@@ -63,7 +63,10 @@ export default function (eleventyConfig) {
   eleventyConfig.addGlobalData('permalinkMap', permalinkMap);
 
   // Post attachments live beside index.md and are copied through untouched.
-  eleventyConfig.addPassthroughCopy('posts/**/*.{jpg,jpeg,png,gif,svg,webp,pdf,zip,gpx,tcx,csv,json}');
+  // Attachments are the user's data: copy ALL of them, whatever the extension
+  // — a fixed list silently dropped .fit files and anything else it hadn't
+  // foreseen (2026-08-31). Only the markdown itself is a template.
+  eleventyConfig.addPassthroughCopy('posts/**/*.!(md)');
   eleventyConfig.addPassthroughCopy('assets');
   eleventyConfig.addPassthroughCopy('fonts');
   eleventyConfig.addPassthroughCopy('favicon.svg'); // replace with your own — it is yours // self-hosted — the blog makes no third-party requests

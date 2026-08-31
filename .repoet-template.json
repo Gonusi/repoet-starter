@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-30.ff26797",
+  "version": "2026-08-31.a2bf983",
   "files": {
     ".github/workflows/deploy.yml": "25ad91bf7b7d161e1580b4bd29b0a7bbd37ab47e",
     ".gitignore": "24c994505350cba2eedd447b5bb3dc28fe83f5d8",
@@ -7,13 +7,14 @@
     "NOTICE": "1dc0e7272adb3d060a16c284125980a2ce796f1d",
     "_includes/layout.njk": "61b2c5ef30b8bad8ee63efa120a825c06deff532",
     "_includes/post.njk": "5371dbe9493ddaa7e143d8eb00eeed1e4858834e",
+    "_lib/attachments.test.mjs": "5382d4aa80c9b383088bbe1772febb27ec8c5bfd",
     "_lib/empty.test.mjs": "aef4579bbcef23ab514a2e664f1c8743c2a0e527",
     "_lib/permalinks.js": "2070300e8cb6e90e0205a4c55d6260887ca29a1f",
     "_lib/permalinks.test.mjs": "3e9b18c67544deb2dedca15cce78080a9d310f15",
     "_lib/seo.test.mjs": "dee0f5fda62691eca863d9a7ad0f51776273526f",
     "_lib/tier3.test.mjs": "aebf0f0bb6595e5566fd3343d76c34b360c7a695",
     "_lib/workflow.test.mjs": "c4355e355015a22fd46c07f1783bfd70a080db89",
-    "eleventy.config.js": "0b0d84e2e4fce9556f0f770bf20253f29fef79d4",
+    "eleventy.config.js": "ae669ea3ec7bbf2a433b8eaf295892cc4bb65fb7",
     "fonts/IBMPlexMono-400-normal.woff2": "52b6c7595dd5e2106676e7c52fcff18539607879",
     "fonts/Literata-400-italic.woff2": "baf94f17451ae63971054e64f635609e476ff198",
     "fonts/Literata-400-normal.woff2": "2e8086d09b347df7762ed5dc50161bdfa55b37df",
