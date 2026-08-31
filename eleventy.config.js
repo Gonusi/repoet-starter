@@ -67,6 +67,11 @@ export default function (eleventyConfig) {
   // — a fixed list silently dropped .fit files and anything else it hadn't
   // foreseen (2026-08-31). Only the markdown itself is a template.
   eleventyConfig.addPassthroughCopy('posts/**/*.!(md)');
+
+  // The README documents the repository on GitHub; it is not a page of the
+  // blog — and its code examples contain template syntax that must never be
+  // executed by the build (found the hard way, 2026-08-31).
+  eleventyConfig.ignores.add('README.md');
   eleventyConfig.addPassthroughCopy('assets');
   eleventyConfig.addPassthroughCopy('fonts');
   eleventyConfig.addPassthroughCopy('favicon.svg'); // replace with your own — it is yours // self-hosted — the blog makes no third-party requests

@@ -1,10 +1,11 @@
 {
-  "version": "2026-08-31.a2bf983",
+  "version": "2026-08-31.cfdaf42",
   "files": {
     ".github/workflows/deploy.yml": "25ad91bf7b7d161e1580b4bd29b0a7bbd37ab47e",
     ".gitignore": "24c994505350cba2eedd447b5bb3dc28fe83f5d8",
     "404.njk": "98dc5a6d68e58e10f09bcd7825a1a60e3540f0bc",
     "NOTICE": "1dc0e7272adb3d060a16c284125980a2ce796f1d",
+    "README.md": "3db64192974ca80876490941b1dfa1903a180c73",
     "_includes/layout.njk": "61b2c5ef30b8bad8ee63efa120a825c06deff532",
     "_includes/post.njk": "5371dbe9493ddaa7e143d8eb00eeed1e4858834e",
     "_lib/attachments.test.mjs": "5382d4aa80c9b383088bbe1772febb27ec8c5bfd",
@@ -14,7 +15,7 @@
     "_lib/seo.test.mjs": "dee0f5fda62691eca863d9a7ad0f51776273526f",
     "_lib/tier3.test.mjs": "aebf0f0bb6595e5566fd3343d76c34b360c7a695",
     "_lib/workflow.test.mjs": "c4355e355015a22fd46c07f1783bfd70a080db89",
-    "eleventy.config.js": "ae669ea3ec7bbf2a433b8eaf295892cc4bb65fb7",
+    "eleventy.config.js": "65462e2b88181f77668b0ab75d7ffaf1879d09f1",
     "fonts/IBMPlexMono-400-normal.woff2": "52b6c7595dd5e2106676e7c52fcff18539607879",
     "fonts/Literata-400-italic.woff2": "baf94f17451ae63971054e64f635609e476ff198",
     "fonts/Literata-400-normal.woff2": "2e8086d09b347df7762ed5dc50161bdfa55b37df",
