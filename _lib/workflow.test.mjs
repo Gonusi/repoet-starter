@@ -46,3 +46,22 @@ test('actions are current, so blogs do not inherit deprecation warnings', () => 
     assert.ok(Number(m[1]) >= min, `actions/${action} should be v${min}+, found v${m[1]}`);
   }
 });
+
+// A repository's default branch is not always `main`: an empty repository gets
+// its owner's GitHub setting, often `master`. A workflow that names `main`
+// never deploys such a blog. The push event carries the repository's default
+// branch, so the workflow reads it instead of naming one.
+
+test('the blog deploys from the default branch, whatever it is called', () => {
+  assert.doesNotMatch(wf, /branches:\s*\[\s*main\s*\]/, 'no branch name may be written into the trigger');
+  assert.match(wf,
+    /build:[\s\S]{0,400}if:\s*github\.ref\s*==\s*format\('refs\/heads\/\{0\}',\s*github\.event\.repository\.default_branch\)/,
+    'the build job runs only for a push to the default branch, read from the push itself');
+});
+
+test('a push to another branch never cancels the blog build', () => {
+  // Concurrency is decided before any job's `if`, so one shared group would
+  // let a skipped push to a side branch cancel a real deploy in progress.
+  assert.match(wf, /concurrency:\s*\n\s*group:\s*pages-\$\{\{\s*github\.ref\s*\}\}/,
+    'each branch has its own concurrency group');
+});

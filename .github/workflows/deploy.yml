@@ -1,19 +1,21 @@
-# Deploys the blog to GitHub Pages on every push to main.
+# Deploys the blog to GitHub Pages on every push to the default branch.
 # Repoet relies only on "a push produces a Pages deployment readable via the
 # API" — everything in this file is yours to customize.
 name: Deploy
 on:
-  push:
-    branches: [main]
+  push: # any branch; the build job below keeps only the default one
 permissions:
   contents: read
   pages: write
   id-token: write
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }} # per branch: another branch never cancels the blog
   cancel-in-progress: true # a newer post supersedes an in-flight build
 jobs:
   build:
+    # The default branch is the blog, whatever it is called (main, master…).
+    # Its name comes with the push, so nothing here needs to know it.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     outputs:
       enabled: ${{ steps.pages.outputs.enabled }}
