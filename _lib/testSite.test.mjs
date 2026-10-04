@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { testSite } from './testSite.mjs';
+import { sweepStaleCopies, testSite } from './testSite.mjs';
 
 // The build tests set their own blog.json and probe posts. They once wrote
 // them into this blog and put the file back afterwards, so a run stopped
@@ -57,6 +57,33 @@ test('a finished test site leaves nothing behind', () => {
   const site = testSite();
   site.dispose();
   assert.ok(!existsSync(site.dir));
+});
+
+// A test run killed outright (SIGKILL, a closed terminal) cannot remove its
+// copy, and copies piled up in the system's temporary folder (2026-10-04).
+test('a copy is named for the test process that made it', () => {
+  const site = testSite();
+  try {
+    assert.match(site.dir.split('/').pop(), new RegExp(`^repoet-test-site-${process.pid}-`));
+  } finally {
+    site.dispose();
+  }
+});
+
+test('a copy whose test process is gone is removed when a test site is made', () => {
+  const orphan = testSite(); // stands for the copy of a run killed outright
+  sweepStaleCopies({ isAlive: (pid) => pid !== process.pid });
+  assert.ok(!existsSync(orphan.dir));
+});
+
+test('a copy whose test process is still running is left alone', () => {
+  const site = testSite();
+  try {
+    sweepStaleCopies();
+    assert.ok(existsSync(site.dir));
+  } finally {
+    site.dispose();
+  }
 });
 
 // Builds that never ended once outlived a stopped test run: 54 of them ran

@@ -9,12 +9,17 @@
 // even when they are killed outright. Builds started through `npm exec` once
 // outlived a stopped test run: 54 of them ran for 8 hours, deaf to SIGTERM
 // (2026-09-27).
+//
+// Each copy is named for the test process that made it. Copies are removed
+// when that process exits or is stopped by a signal; a copy whose process was
+// killed outright is removed the next time a test site is made.
 import { spawn } from 'node:child_process';
 import {
   cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -48,6 +53,37 @@ build.on('exit', (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
 
 /** Builds still running, by process group. */
 const running = new Set();
+/** This process's copies not yet disposed. */
+const copies = new Set();
+/** A copy's folder name: the prefix, the pid of the test process that made it, a random part. */
+const COPY = /^repoet-test-site-(\d+)-/;
+
+function removeCopies() {
+  for (const dir of copies) rmSync(dir, { recursive: true, force: true });
+  copies.clear();
+}
+
+/** Is that process still running? A process we may not signal is running too. */
+function alive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === 'EPERM';
+  }
+}
+
+/**
+ * Remove the copies in the system's temporary folder whose test process is
+ * gone: a run killed outright could not remove its own. Copies of a run still
+ * going, and folders named any other way, are left alone.
+ */
+export function sweepStaleCopies({ isAlive = alive } = {}) {
+  for (const name of readdirSync(tmpdir())) {
+    const owner = COPY.exec(name);
+    if (owner && !isAlive(Number(owner[1]))) rmSync(join(tmpdir(), name), { recursive: true, force: true });
+  }
+}
 
 function stopGroup(pgid) {
   try {
@@ -59,10 +95,14 @@ function stopGroup(pgid) {
 
 // The tests stop: nothing they started keeps running. A signal is passed on
 // afterwards, so the test process still ends as it would have.
-process.on('exit', () => running.forEach(stopGroup));
+process.on('exit', () => {
+  running.forEach(stopGroup);
+  removeCopies();
+});
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   process.once(signal, () => {
     running.forEach(stopGroup);
+    removeCopies();
     process.kill(process.pid, signal);
   });
 }
@@ -117,7 +157,9 @@ function runBuild(dir, env, { timeoutMs = BUILD_TIME_LIMIT_MS, onStart } = {}) {
 }
 
 export function testSite() {
-  const dir = mkdtempSync(join(tmpdir(), 'repoet-test-site-'));
+  sweepStaleCopies();
+  const dir = mkdtempSync(join(tmpdir(), `repoet-test-site-${process.pid}-`));
+  copies.add(dir);
   cpSync(BLOG, dir, {
     recursive: true,
     filter: (src) => !LEFT_OUT.has(relative(BLOG, src).split(sep)[0]),
@@ -158,6 +200,7 @@ export function testSite() {
     },
     dispose() {
       rmSync(dir, { recursive: true, force: true });
+      copies.delete(dir);
     },
   };
 }

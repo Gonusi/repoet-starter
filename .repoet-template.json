@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-04.25b0ada",
+  "version": "2026-10-04.7d70e00",
   "files": {
     ".github/workflows/deploy.yml": "e7db8cb69104e5d22e9d329e5c70ad43a0232504",
     ".gitignore": "24c994505350cba2eedd447b5bb3dc28fe83f5d8",
@@ -13,8 +13,8 @@
     "_lib/permalinks.js": "2070300e8cb6e90e0205a4c55d6260887ca29a1f",
     "_lib/permalinks.test.mjs": "3e9b18c67544deb2dedca15cce78080a9d310f15",
     "_lib/seo.test.mjs": "9e8acda9e40ef9652851fa337375e3995edeb0b6",
-    "_lib/testSite.mjs": "0663ec5ff2f340804a2a4bdf8c70bc300a8b7415",
-    "_lib/testSite.test.mjs": "6f375e55ad846c74052090b864d57aff0f46e475",
+    "_lib/testSite.mjs": "22ec6674f0693ec7be66ae7e9fd348a38aef83d7",
+    "_lib/testSite.test.mjs": "9bcf806b8a10bedb4fd7a491b5d02ecaf69b7f14",
     "_lib/tier3.test.mjs": "77736429f9e7f98c054c464760afeb6d71758ae5",
     "_lib/workflow.test.mjs": "8835f2e83452db1540d71d0bc955e65e9c90690a",
     "eleventy.config.js": "65462e2b88181f77668b0ab75d7ffaf1879d09f1",
