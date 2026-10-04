@@ -1,63 +1,56 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { testSite } from './testSite.mjs';
 
 // SEO baseline (PROGRESS: Tier 1, 2026-08-24). These tests BUILD the site and
 // assert what a crawler actually receives — the head used to contain only
 // charset/viewport/title, which is a broken blog as far as search, feed
-// readers and link previews are concerned.
+// readers and link previews are concerned. They build a throwaway copy with
+// their own settings, so this blog's blog.json is never touched (testSite.mjs).
 
 const SITE = 'https://example-owner.github.io/blog';
 const POST_DIR = 'posts/2026/08/zzseo-probe';
 const IMG_POST_DIR = 'posts/2026/08/zzseo-image';
 const FMIMG_POST_DIR = 'posts/2026/08/zzseo-fmimg';
-let indexHtml, postHtml, imagePostHtml, fmImagePostHtml, feedXml, sitemapXml, robotsTxt, blogJsonBackup;
+let site, indexHtml, postHtml, imagePostHtml, fmImagePostHtml, feedXml, sitemapXml, robotsTxt;
 
 before(() => {
-  blogJsonBackup = readFileSync('blog.json', 'utf-8');
-  writeFileSync('blog.json', JSON.stringify({
+  site = testSite();
+  site.write('blog.json', JSON.stringify({
     title: 'Probe blog',
     description: 'Small notes about running',
     language: 'lt',
     author: 'Kasparas',
     showDescription: true,
   }, null, 2));
-  mkdirSync(POST_DIR, { recursive: true });
-  writeFileSync(`${POST_DIR}/index.md`, [
+  site.write(`${POST_DIR}/index.md`, [
     '---', 'id: seo-probe', 'title: Probe post', 'slug: zzseo-probe',
     'date: 2026-08-24T10:00:00+03:00', "description: 'One specific post summary'",
     '---', 'Body text.', '',
   ].join('\n'));
   // Image probes: one picks up the first body image, one overrides via frontmatter.
-  mkdirSync(IMG_POST_DIR, { recursive: true });
-  writeFileSync(`${IMG_POST_DIR}/photo.jpg`, 'notreallyajpeg');
-  writeFileSync(`${IMG_POST_DIR}/index.md`, [
+  site.write(`${IMG_POST_DIR}/photo.jpg`, 'notreallyajpeg');
+  site.write(`${IMG_POST_DIR}/index.md`, [
     '---', 'id: seo-image', 'title: Image post', 'slug: zzseo-image',
     'date: 2026-08-25T10:00:00+03:00', '---', '![A photo](photo.jpg)', 'Body.', '',
   ].join('\n'));
-  mkdirSync(FMIMG_POST_DIR, { recursive: true });
-  writeFileSync(`${FMIMG_POST_DIR}/cover.png`, 'notreallyapng');
-  writeFileSync(`${FMIMG_POST_DIR}/index.md`, [
+  site.write(`${FMIMG_POST_DIR}/cover.png`, 'notreallyapng');
+  site.write(`${FMIMG_POST_DIR}/index.md`, [
     '---', 'id: seo-fmimg', 'title: Cover post', 'slug: zzseo-fmimg',
     'date: 2026-08-26T10:00:00+03:00', 'image: cover.png', '---', '![Other](photo.jpg)', '',
   ].join('\n'));
-  execSync('npx @11ty/eleventy', { env: { ...process.env, SITE_URL: SITE }, stdio: 'pipe' });
-  indexHtml = readFileSync('_site/index.html', 'utf-8');
-  postHtml = readFileSync('_site/zzseo-probe/index.html', 'utf-8');
-  imagePostHtml = readFileSync('_site/zzseo-image/index.html', 'utf-8');
-  fmImagePostHtml = readFileSync('_site/zzseo-fmimg/index.html', 'utf-8');
-  feedXml = existsSync('_site/feed.xml') ? readFileSync('_site/feed.xml', 'utf-8') : '';
-  sitemapXml = existsSync('_site/sitemap.xml') ? readFileSync('_site/sitemap.xml', 'utf-8') : '';
-  robotsTxt = existsSync('_site/robots.txt') ? readFileSync('_site/robots.txt', 'utf-8') : '';
+  site.build({ SITE_URL: SITE });
+  indexHtml = site.read('index.html');
+  postHtml = site.read('zzseo-probe/index.html');
+  imagePostHtml = site.read('zzseo-image/index.html');
+  fmImagePostHtml = site.read('zzseo-fmimg/index.html');
+  feedXml = site.has('feed.xml') ? site.read('feed.xml') : '';
+  sitemapXml = site.has('sitemap.xml') ? site.read('sitemap.xml') : '';
+  robotsTxt = site.has('robots.txt') ? site.read('robots.txt') : '';
 });
 
-after(() => {
-  writeFileSync('blog.json', blogJsonBackup);
-  rmSync(POST_DIR, { recursive: true, force: true });
-  rmSync(IMG_POST_DIR, { recursive: true, force: true });
-  rmSync(FMIMG_POST_DIR, { recursive: true, force: true });
-});
+after(() => site?.dispose());
 
 test('the page language comes from settings, never hardcoded English', () => {
   assert.match(indexHtml, /<html lang="lt">/);
@@ -91,7 +84,7 @@ test('sitemap lists the post with an absolute URL; robots points at the sitemap'
 });
 
 test('a favicon ships and is referenced', () => {
-  assert.ok(existsSync('_site/favicon.svg'), 'favicon.svg copied into the site');
+  assert.ok(site.has('favicon.svg'), 'favicon.svg copied into the site');
   assert.match(indexHtml, /<link rel="icon"/);
 });
 
