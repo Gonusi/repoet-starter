@@ -3,7 +3,13 @@
 // a test run stopped halfway leaves nothing here to commit. Writing the real
 // blog.json and putting it back afterwards once left the test settings behind,
 // and they shipped to every blog made from the template (2026-09-27).
-import { execSync } from 'node:child_process';
+//
+// Every build has a time limit and runs in its own process group, which is
+// stopped whole when the build times out, fails, finishes, or the tests stop,
+// even when they are killed outright. Builds started through `npm exec` once
+// outlived a stopped test run: 54 of them ran for 8 hours, deaf to SIGTERM
+// (2026-09-27).
+import { spawn } from 'node:child_process';
 import {
   cpSync,
   existsSync,
@@ -21,6 +27,94 @@ import { fileURLToPath } from 'node:url';
 const BLOG = fileURLToPath(new URL('..', import.meta.url));
 /** Not part of the blog: git's own folder, installed packages and the last build. */
 const LEFT_OUT = new Set(['.git', 'node_modules', '_site']);
+/** Eleventy's own command, run by this Node: no npm process in between. */
+const ELEVENTY = join(BLOG, 'node_modules', '@11ty', 'eleventy', 'cmd.cjs');
+/** A build of this blog takes seconds; one still running after this never ends. */
+const BUILD_TIME_LIMIT_MS = 60_000;
+
+// The first process of each build's group. It starts Eleventy in the same
+// group, with no input, and stops the whole group when its own input closes:
+// that happens when the tests are done with it or die for any reason,
+// SIGKILL included.
+const GUARD = `
+const { spawn } = require('node:child_process');
+const build = spawn(process.execPath, process.argv.slice(1), { stdio: ['ignore', 'inherit', 'inherit'] });
+const stopGroup = () => { try { process.kill(0, 'SIGKILL'); } catch {} };
+process.stdin.on('end', stopGroup);
+process.stdin.on('close', stopGroup);
+process.stdin.resume();
+build.on('exit', (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
+`;
+
+/** Builds still running, by process group. */
+const running = new Set();
+
+function stopGroup(pgid) {
+  try {
+    process.kill(-pgid, 'SIGKILL');
+  } catch {
+    /* already gone */
+  }
+}
+
+// The tests stop: nothing they started keeps running. A signal is passed on
+// afterwards, so the test process still ends as it would have.
+process.on('exit', () => running.forEach(stopGroup));
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.once(signal, () => {
+    running.forEach(stopGroup);
+    process.kill(process.pid, signal);
+  });
+}
+
+/**
+ * Run Eleventy in `dir`. Resolves when it succeeds; rejects when it fails or
+ * outlives `timeoutMs`. Either way, everything it started is stopped first.
+ * `onStart` gets the process group and a way to close the build's input, for
+ * the tests of this helper.
+ */
+function runBuild(dir, env, { timeoutMs = BUILD_TIME_LIMIT_MS, onStart } = {}) {
+  return new Promise((resolve, reject) => {
+    const guard = spawn(process.execPath, ['-e', GUARD, ELEVENTY], {
+      cwd: dir,
+      env: { ...process.env, ...env },
+      detached: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    const pgid = guard.pid;
+    running.add(pgid);
+    onStart?.({ pgid, closeInput: () => guard.stdin.destroy() });
+    let output = '';
+    guard.stdout.on('data', (d) => (output += d));
+    guard.stderr.on('data', (d) => (output += d));
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      stopGroup(pgid);
+    }, timeoutMs);
+    let finished = false;
+    const finish = (error) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      stopGroup(pgid);
+      running.delete(pgid);
+      guard.stdin.destroy();
+      if (error) reject(error);
+      else resolve();
+    };
+    guard.on('error', finish);
+    guard.on('close', (code, signal) => {
+      if (timedOut) {
+        finish(new Error(`The build did not finish in ${timeoutMs / 1000} s and was stopped.\n${output}`));
+      } else if (code !== 0) {
+        finish(new Error(`The build failed (${signal ?? `exit ${code}`}).\n${output}`));
+      } else {
+        finish();
+      }
+    });
+  });
+}
 
 export function testSite() {
   const dir = mkdtempSync(join(tmpdir(), 'repoet-test-site-'));
@@ -50,9 +144,9 @@ export function testSite() {
     remove(path) {
       rmSync(at(path), { recursive: true, force: true });
     },
-    /** Build the copy, as the deploy workflow builds the blog. */
-    build(env) {
-      execSync('npx @11ty/eleventy', { cwd: dir, env: { ...process.env, ...env }, stdio: 'pipe' });
+    /** Build the copy, as the deploy workflow builds the blog (runBuild). */
+    build(env = {}, options) {
+      return runBuild(dir, env, options);
     },
     /** A file of the built site. */
     read(path) {

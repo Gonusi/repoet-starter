@@ -37,14 +37,14 @@ test('a test site never writes or removes outside its copy', () => {
   }
 });
 
-test('a test site builds its own posts; none of them land in this blog', () => {
+test('a test site builds its own posts; none of them land in this blog', async () => {
   const site = testSite();
   try {
     site.write('posts/2026/08/zzsite-probe/index.md', [
       '---', 'id: site-probe', 'title: Site probe', 'slug: zzsite-probe',
       'date: 2026-08-24T10:00:00Z', '---', 'Body.', '',
     ].join('\n'));
-    site.build({ SITE_URL: '', PATH_PREFIX: '/' });
+    await site.build({ SITE_URL: '', PATH_PREFIX: '/' });
     assert.match(site.read('zzsite-probe/index.html'), /Site probe/);
     assert.ok(!existsSync(new URL('../posts/2026/08/zzsite-probe', import.meta.url)));
     assert.ok(!existsSync(new URL('../_site/zzsite-probe', import.meta.url)));
@@ -57,6 +57,90 @@ test('a finished test site leaves nothing behind', () => {
   const site = testSite();
   site.dispose();
   assert.ok(!existsSync(site.dir));
+});
+
+// Builds that never ended once outlived a stopped test run: 54 of them ran
+// for 8 hours, deaf to SIGTERM (2026-09-27). This Eleventy config starts a
+// second process, writes both process ids to `pids`, ignores SIGTERM and
+// never finishes; with `fail` it throws instead, leaving the second process
+// running. Module names are built so the check below does not read the
+// config's own imports as this file's.
+const CHILD_PROCESS = ['node', 'child_process'].join(':');
+function neverEndingConfig({ fail = false } = {}) {
+  return `import { spawn } from '${CHILD_PROCESS}';
+import { writeFileSync } from '${['node', 'fs'].join(':')}';
+export default async function () {
+  process.on('SIGTERM', () => {});
+  const helper = spawn(process.execPath, ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"], { stdio: 'ignore' });
+  writeFileSync('pids', JSON.stringify([process.pid, helper.pid]));
+  ${fail ? "helper.unref();\n  throw new Error('this config fails on purpose');" : 'setInterval(() => {}, 1000);\n  await new Promise(() => {});'}
+}
+`;
+}
+
+function running(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === 'EPERM';
+  }
+}
+
+/** The processes of `pids` still running after up to 5 s. */
+async function stillRunning(pids) {
+  for (let i = 0; i < 50 && pids.some(running); i++) await new Promise((r) => setTimeout(r, 100));
+  return pids.filter(running);
+}
+
+/** The build's two processes, once its config has written them. */
+async function buildPids(site) {
+  const file = `${site.dir}/pids`;
+  for (let i = 0; i < 150 && !existsSync(file); i++) await new Promise((r) => setTimeout(r, 100));
+  return JSON.parse(readFileSync(file, 'utf-8'));
+}
+
+test('a build that never ends is stopped with everything it started, and the test fails fast', { timeout: 30_000 }, async () => {
+  const site = testSite();
+  try {
+    site.write('eleventy.config.js', neverEndingConfig());
+    const started = Date.now();
+    await assert.rejects(site.build({}, { timeoutMs: 5000 }), /did not finish in 5 s and was stopped/);
+    assert.ok(Date.now() - started < 15_000, 'the build is stopped at its time limit');
+    assert.deepEqual(await stillRunning(await buildPids(site)), []);
+  } finally {
+    site.dispose();
+  }
+});
+
+test('a failed build stops everything it started', { timeout: 30_000 }, async () => {
+  const site = testSite();
+  try {
+    site.write('eleventy.config.js', neverEndingConfig({ fail: true }));
+    await assert.rejects(site.build({}, { timeoutMs: 20_000 }), /The build failed/);
+    assert.deepEqual(await stillRunning(await buildPids(site)), []);
+  } finally {
+    site.dispose();
+  }
+});
+
+// When the tests die, even by SIGKILL, the system closes the build's input;
+// closing it here is the same event.
+test('a build whose tests are gone stops with everything it started', { timeout: 30_000 }, async () => {
+  const site = testSite();
+  try {
+    site.write('eleventy.config.js', neverEndingConfig());
+    let closeInput;
+    const build = site.build({}, { timeoutMs: 20_000, onStart: (b) => (closeInput = b.closeInput) });
+    const pids = await buildPids(site);
+    const closed = Date.now();
+    closeInput();
+    await assert.rejects(build, /The build failed/);
+    assert.ok(Date.now() - closed < 10_000, 'stopped on closing, not at the time limit');
+    assert.deepEqual(await stillRunning(pids), []);
+  } finally {
+    site.dispose();
+  }
 });
 
 // Only testSite.mjs writes files or runs the build. A test that did either

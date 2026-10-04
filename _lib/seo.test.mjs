@@ -15,7 +15,7 @@ const IMG_POST_DIR = 'posts/2026/08/zzseo-image';
 const FMIMG_POST_DIR = 'posts/2026/08/zzseo-fmimg';
 let site, indexHtml, postHtml, imagePostHtml, fmImagePostHtml, feedXml, sitemapXml, robotsTxt;
 
-before(() => {
+before(async () => {
   site = testSite();
   site.write('blog.json', JSON.stringify({
     title: 'Probe blog',
@@ -40,7 +40,7 @@ before(() => {
     '---', 'id: seo-fmimg', 'title: Cover post', 'slug: zzseo-fmimg',
     'date: 2026-08-26T10:00:00+03:00', 'image: cover.png', '---', '![Other](photo.jpg)', '',
   ].join('\n'));
-  site.build({ SITE_URL: SITE });
+  await site.build({ SITE_URL: SITE });
   indexHtml = site.read('index.html');
   postHtml = site.read('zzseo-probe/index.html');
   imagePostHtml = site.read('zzseo-image/index.html');

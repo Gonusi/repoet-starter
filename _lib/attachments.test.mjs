@@ -11,14 +11,14 @@ import { testSite } from './testSite.mjs';
 const DIR = 'posts/2026/08/zzattach-probe';
 let site;
 
-before(() => {
+before(async () => {
   site = testSite();
   site.write(`${DIR}/index.md`, ['---', 'id: attach-probe', 'title: Attach probe',
     'slug: zzattach-probe', 'date: 2026-08-27T10:00:00Z', '---', 'Body.', ''].join('\n'));
   site.write(`${DIR}/ride.fit`, 'FITBYTES');
   site.write(`${DIR}/notes.unknownext`, 'whatever the user attached');
   site.write(`${DIR}/photo.jpg`, 'jpegbytes');
-  site.build({ SITE_URL: '', PATH_PREFIX: '/' });
+  await site.build({ SITE_URL: '', PATH_PREFIX: '/' });
 });
 
 after(() => site?.dispose());

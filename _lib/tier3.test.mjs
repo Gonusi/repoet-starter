@@ -14,7 +14,7 @@ function post(dir, fm, body = 'Body.') {
   site.write(`${dir}/index.md`, ['---', ...fm, '---', body, ''].join('\n'));
 }
 
-before(() => {
+before(async () => {
   site = testSite();
   site.write('blog.json', JSON.stringify({
     title: 'Probe blog', description: 'Notes', language: 'en', author: 'Kasparas',
@@ -40,7 +40,7 @@ before(() => {
     ]);
   }
   // PATH_PREFIX matters here: tag/home links must survive project-page prefixes.
-  site.build({ SITE_URL: SITE, PATH_PREFIX: '/blog/' });
+  await site.build({ SITE_URL: SITE, PATH_PREFIX: '/blog/' });
 });
 
 after(() => site?.dispose());
