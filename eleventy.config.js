@@ -10,10 +10,23 @@ import matter from 'gray-matter';
 
 import { resolvePermalinks, shortIdFromPath } from './_lib/permalinks.js';
 
-/** A post's slug: its frontmatter `slug`, else the folder name after the short id. */
-function slugOf(inputPath, data) {
+/**
+ * A post's slug: the `slug:` line of its frontmatter as written, else the
+ * folder name after the short id. Read as text, never through YAML's types:
+ * `slug: 2026-10-05` is /2026-10-05/, not a date, and `007`, `1.50`, `1e3`,
+ * `~` and `'it''s'` keep the addresses they always had. Only a trailing
+ * ` # comment` is dropped, as YAML drops it.
+ */
+export function slugOf(inputPath, text) {
   const dir = inputPath.split('/').slice(-2, -1)[0] ?? '';
-  return String(data.slug ?? '').trim() || dir.split('-').slice(1).join('-') || dir;
+  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  const line = fm && /^slug:[ \t]*(.+?)[ \t]*$/m.exec(fm[1]);
+  let slug = '';
+  if (line) {
+    const quoted = /^(["'])(.*)\1(?:[ \t]+#.*)?$/.exec(line[1]);
+    slug = quoted ? quoted[2] : line[1].replace(/[ \t]+#.*$/, '').replace(/^["']|["']$/g, '');
+  }
+  return slug || dir.split('-').slice(1).join('-') || dir;
 }
 
 /** Files Eleventy would build as pages. Inside a post folder they are attachments. */
@@ -65,24 +78,25 @@ export default function (eleventyConfig) {
   // Resolve slug collisions once, up front, so a duplicate slug never
   // hard-fails the build (docs/content-contract/post-identity.md). Posts read
   // their final URL slug from this map via posts.11tydata.js.
-  // The frontmatter is read by the same parser, with the same options, as the
-  // build: a slug or `draft: true # not yet` reads the same here as on the
-  // page. A draft takes no URL, so it never pushes a published post to a suffix.
-  const frontmatter = (path) => {
+  // `draft` is read by the same parser, with the same options, as the build:
+  // `draft: true # not yet` is a draft here as on the page. A draft takes no
+  // URL, so it never pushes a published post to a suffix. The slug is read as
+  // text (slugOf).
+  const frontmatter = (text) => {
     try {
-      const { data } = matter(readFileSync(path, 'utf-8'), eleventyConfig.frontMatterParsingOptions);
+      const { data } = matter(text, eleventyConfig.frontMatterParsingOptions);
       return data && typeof data === 'object' ? data : {};
     } catch {
       return {}; // the build reports a broken frontmatter itself
     }
   };
   const posts = globSync('posts/**/index.md')
-    .map((p) => ({ inputPath: p, data: frontmatter(p) }))
-    .filter(({ data }) => !isDraft(data.draft));
+    .map((p) => ({ inputPath: p, text: readFileSync(p, 'utf-8') }))
+    .filter(({ text }) => !isDraft(frontmatter(text).draft));
   const { urls, warnings } = resolvePermalinks(
-    posts.map(({ inputPath, data }) => ({
+    posts.map(({ inputPath, text }) => ({
       inputPath,
-      slug: slugOf(inputPath, data),
+      slug: slugOf(inputPath, text),
       shortId: shortIdFromPath(inputPath),
     })),
   );
@@ -119,29 +133,25 @@ export default function (eleventyConfig) {
   // posts/, outside a post folder, is published at its own path, as before.
   //
   // An attachment never replaces a file of the blog: a page, a file copied by
-  // a passthrough (the favicon, fonts…) or another post's file. Addresses are
-  // compared ignoring case, because on a case-insensitive disk (macOS)
-  // INDEX.HTML once overwrote index.html.
+  // a passthrough (the favicon, fonts…) or another attachment (siteFiles).
   let copied = [];
   eleventyConfig.on('eleventy.before', () => (copied = []));
   eleventyConfig.on('eleventy.passthrough', ({ map }) => copied.push(...Object.keys(map ?? {})));
   eleventyConfig.on('eleventy.after', ({ dir, results, outputMode }) => {
     if (outputMode && outputMode !== 'fs') return;
     const output = normalize(dir?.output ?? '_site');
-    const key = (path) => normalize(path).toLowerCase();
-    const taken = new Map(); // site file (any case) -> what is there
-    for (const { outputPath } of results) if (outputPath) taken.set(key(String(outputPath)), 'a page of the blog');
-    for (const url of copied) taken.set(key(join(output, decodeURI(url))), 'a file of the blog');
+    const site = siteFiles();
+    for (const { outputPath } of results) if (outputPath) site.own(String(outputPath), 'a page of the blog');
+    for (const url of copied) site.own(join(output, decodeURI(url)), 'a file of the blog');
     const publish = (from, file, to) => {
       const target = join(to, file);
-      const there = taken.get(key(target));
+      const there = site.claim(target, `${from}/${file}`);
       if (there) {
         console.warn(`[repoet] ${from}/${file} was not published: ${there} is at that address.`);
         return;
       }
       mkdirSync(dirname(target), { recursive: true });
       copyFileSync(join(from, file), target);
-      taken.set(key(target), `${from}/${file}`);
     };
     for (const { inputPath, outputPath } of results) {
       const source = String(inputPath).replace(/^\.\//, '');
@@ -302,4 +312,29 @@ function looseFilesIn(root, prefix = '') {
 /** A path as a glob that matches only itself. */
 function escapeGlob(path) {
   return path.replace(/[\\*?[\]{}()!+@]/g, '\\$&');
+}
+
+/**
+ * The site's files, as attachments are published into it. The blog's own
+ * files (pages, passthrough copies) are matched ignoring case: on a
+ * case-insensitive disk (macOS) an attachment named INDEX.HTML once
+ * overwrote index.html. Attachments are matched exactly: Photo.jpg and
+ * photo.jpg are two files on the Linux machine that builds the blog.
+ * `claim` returns what is already at the address, or nothing and takes it.
+ */
+export function siteFiles() {
+  const own = new Map(); // lower-cased path -> what is there
+  const attached = new Map(); // exact path -> the file published there
+  return {
+    own(path, what) {
+      own.set(normalize(path).toLowerCase(), what);
+    },
+    claim(path, from) {
+      const exact = normalize(path);
+      const there = own.get(exact.toLowerCase()) ?? attached.get(exact);
+      if (there) return there;
+      attached.set(exact, from);
+      return null;
+    },
+  };
 }

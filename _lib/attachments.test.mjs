@@ -248,3 +248,18 @@ test('while the blog is previewed with npm run dev, a changed or added attachmen
     dev.dispose();
   }
 });
+
+// Which address an attachment may take, without a build: on macOS the disk
+// cannot hold Photo.jpg and photo.jpg in one folder, so the rule is tested
+// directly. The blog builds on Linux, where they are two files.
+test('two attachments that differ only in case are both published; a page or blog file in any case is never replaced', async () => {
+  const { siteFiles } = await import('../eleventy.config.js');
+  const files = siteFiles();
+  files.own('_site/lake/index.html', 'a page of the blog');
+  files.own('_site/favicon.svg', 'a file of the blog');
+  assert.equal(files.claim('_site/lake/Photo.jpg', 'posts/a/Photo.jpg'), null);
+  assert.equal(files.claim('_site/lake/photo.jpg', 'posts/a/photo.jpg'), null);
+  assert.equal(files.claim('_site/lake/photo.jpg', 'posts/b/photo.jpg'), 'posts/a/photo.jpg');
+  assert.equal(files.claim('_site/lake/INDEX.HTML', 'posts/a/INDEX.HTML'), 'a page of the blog');
+  assert.equal(files.claim('_site/Favicon.SVG', 'posts/about/Favicon.SVG'), 'a file of the blog');
+});

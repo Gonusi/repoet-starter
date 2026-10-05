@@ -9,6 +9,16 @@ import { testSite } from './testSite.mjs';
 
 const SITE = 'https://example-owner.github.io/blog';
 let site;
+/** A hand-written `slug:` value, and the address its post is built at. */
+const SLUGS = [
+  ['2026-10-05', '2026-10-05'],
+  ['007', '007'],
+  ['1.50', '1.50'],
+  ['1e3', '1e3'],
+  ['~', '~'],
+  ["'it''s'", "it''s"],
+  ['zzx # note', 'zzx'], // a YAML comment is not part of the slug
+];
 
 function post(dir, fm, body = 'Body.') {
   site.write(`${dir}/index.md`, ['---', ...fm, '---', body, ''].join('\n'));
@@ -82,6 +92,14 @@ before(async () => {
     'id: t3-draft-yes', 'title: Secret yes draft', 'slug: zzt3-draft-yes', 'draft: "yes"',
     'date: 2026-08-16T10:00:00Z',
   ]);
+  // Hand-written slugs keep the exact address they always had: the slug is
+  // read as the text written, never as a YAML date, number or null (T1
+  // re-review: reading it through the YAML parser moved these posts).
+  SLUGS.forEach(([written], i) => {
+    post(`posts/2026/06/sl${String(i).padStart(6, '0')}-folder-name-${i}`, [
+      `id: t3-slug-${i}`, `title: Slug case ${i}`, `slug: ${written}`, 'date: 2026-06-01T10:00:00Z',
+    ]);
+  });
   // Enough posts to force a second archive page (page size 50).
   for (let i = 0; i < 52; i++) {
     post(`posts/2026/07/zzt3-filler-${String(i).padStart(2, '0')}`, [
@@ -186,4 +204,11 @@ test('a draft takes no address: the published post with the same slug keeps the 
   assert.ok(!site.has('zzt3-public-zzzz/index.html'));
   assert.match(read('zzt3-pub2/index.html'), /Public two/, 'draft: true with a comment after it');
   assert.doesNotMatch(read('index.html'), /Commented draft/);
+});
+
+test('a hand-written slug keeps its address: dates, numbers, ~ and quotes stay the text written', () => {
+  SLUGS.forEach(([written, address], i) => {
+    assert.ok(site.has(`${address}/index.html`), `slug: ${written} → /${address}/`);
+    assert.match(read(`${address}/index.html`), new RegExp(`Slug case ${i}<`), `slug: ${written}`);
+  });
 });
