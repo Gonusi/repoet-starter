@@ -1,11 +1,11 @@
 {
-  "version": "2026-10-05.cff2e5b",
+  "version": "2026-10-05.27692b3",
   "files": {
     ".github/workflows/deploy.yml": "e72332549f91b14356fc74f3d29fa9cbc4af7c04",
     ".gitignore": "24c994505350cba2eedd447b5bb3dc28fe83f5d8",
     "404.njk": "98dc5a6d68e58e10f09bcd7825a1a60e3540f0bc",
     "NOTICE": "dd77fc33b55dab4fa29c2098c7514ed9ff24468e",
-    "README.md": "bef769f1e2b64566a864275adb54764a6a818bea",
+    "README.md": "ec88cfb07532aed281151dce3a773c1f51c69e66",
     "_includes/layout.njk": "61b2c5ef30b8bad8ee63efa120a825c06deff532",
     "_includes/post.njk": "3b7a14384b87f96bbc004e5e0825575165c66a7f",
     "_lib/attachments.test.mjs": "3271c25376c6c513f239c77dd6f9475dacd7d694",
