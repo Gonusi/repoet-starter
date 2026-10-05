@@ -171,6 +171,11 @@ export default function (eleventyConfig) {
 
   return {
     dir: { input: '.', includes: '_includes', output: '_site' },
+    // A post is Markdown and nothing else. Run through Liquid (Eleventy's
+    // default), `${{ secrets.TOKEN }}` in a code block published as `$`,
+    // `{{ x }}` vanished and `{% if %}` in a sentence failed the build
+    // (2026-10-05). Posts are exactly what you wrote.
+    markdownTemplateEngine: false,
     // The URL is computed, never stored (docs/decisions/url-computed-not-stored.md):
     // GitHub's configure-pages action provides PATH_PREFIX per deploy.
     pathPrefix: process.env.PATH_PREFIX || '/',

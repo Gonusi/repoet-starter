@@ -32,6 +32,20 @@ before(async () => {
     'date: 2026-08-22T10:00:00Z',
   ], '![A muddy trail after rain](photo.jpg)');
   site.write('posts/2026/08/zzt3-img/photo.jpg', 'notajpeg');
+  // A post is Markdown, never a template: Liquid once ate `{{ x }}` and a
+  // `{% if %}` in a sentence failed the whole build (2026-10-05).
+  post('posts/2026/08/zzt3-liquid', [
+    'id: t3-liquid', 'title: Template syntax', 'slug: zzt3-liquid', 'date: 2026-08-13T10:00:00Z',
+  ], [
+    'In prose: {{ page.title }} and {% if user %}hello{% endif %}.',
+    '',
+    'Inline: `{{ x }}` and `{% y %}`.',
+    '',
+    '```yaml',
+    'env:',
+    '  TOKEN: ${{ secrets.TOKEN }}',
+    '```',
+  ].join('\n'));
   // Enough posts to force a second archive page (page size 50).
   for (let i = 0; i < 52; i++) {
     post(`posts/2026/07/zzt3-filler-${String(i).padStart(2, '0')}`, [
@@ -95,4 +109,11 @@ test('a project-page blog gets exactly ONE path prefix on every link', () => {
   assert.match(home, /href="\/blog\/favicon.svg"/);
   assert.match(home, /href="\/blog\/feed.xml"/);
   assert.doesNotMatch(read('zzt3-tagged/index.html'), /\/blog\/blog\//);
+});
+
+test('template syntax in a post is shown exactly as written, in prose and in code', () => {
+  const html = read('zzt3-liquid/index.html');
+  assert.match(html, /In prose: \{\{ page.title \}\} and \{% if user %\}hello\{% endif %\}\./);
+  assert.match(html, /<code>\{\{ x \}\}<\/code> and <code>\{% y %\}<\/code>/);
+  assert.match(html, /TOKEN: \$\{\{ secrets.TOKEN \}\}/);
 });
