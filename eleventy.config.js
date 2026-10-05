@@ -6,20 +6,14 @@
 import { copyFileSync, existsSync, globSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { feedPlugin } from '@11ty/eleventy-plugin-rss';
+import matter from 'gray-matter';
 
 import { resolvePermalinks, shortIdFromPath } from './_lib/permalinks.js';
 
-/** A top-level scalar of a post's frontmatter, unquoted (simple by contract). */
-function readScalar(text, key) {
-  const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
-  const m = fm && new RegExp(`^${key}:[ \\t]*(.+?)[ \\t]*$`, 'm').exec(fm[1]);
-  return m ? m[1].replace(/^["']|["']$/g, '') : '';
-}
-
-/** Read the `slug:` scalar from a post's frontmatter. */
-function readSlug(inputPath, text) {
+/** A post's slug: its frontmatter `slug`, else the folder name after the short id. */
+function slugOf(inputPath, data) {
   const dir = inputPath.split('/').slice(-2, -1)[0] ?? '';
-  return readScalar(text, 'slug') || dir.split('-').slice(1).join('-') || dir;
+  return String(data.slug ?? '').trim() || dir.split('-').slice(1).join('-') || dir;
 }
 
 /** Files Eleventy would build as pages. Inside a post folder they are attachments. */
@@ -71,14 +65,24 @@ export default function (eleventyConfig) {
   // Resolve slug collisions once, up front, so a duplicate slug never
   // hard-fails the build (docs/content-contract/post-identity.md). Posts read
   // their final URL slug from this map via posts.11tydata.js.
-  // A draft takes no URL, so it never pushes a published post to a suffix.
+  // The frontmatter is read by the same parser, with the same options, as the
+  // build: a slug or `draft: true # not yet` reads the same here as on the
+  // page. A draft takes no URL, so it never pushes a published post to a suffix.
+  const frontmatter = (path) => {
+    try {
+      const { data } = matter(readFileSync(path, 'utf-8'), eleventyConfig.frontMatterParsingOptions);
+      return data && typeof data === 'object' ? data : {};
+    } catch {
+      return {}; // the build reports a broken frontmatter itself
+    }
+  };
   const posts = globSync('posts/**/index.md')
-    .map((p) => ({ inputPath: p, text: readFileSync(p, 'utf-8') }))
-    .filter(({ text }) => !isDraft(readScalar(text, 'draft')));
+    .map((p) => ({ inputPath: p, data: frontmatter(p) }))
+    .filter(({ data }) => !isDraft(data.draft));
   const { urls, warnings } = resolvePermalinks(
-    posts.map(({ inputPath, text }) => ({
+    posts.map(({ inputPath, data }) => ({
       inputPath,
-      slug: readSlug(inputPath, text),
+      slug: slugOf(inputPath, data),
       shortId: shortIdFromPath(inputPath),
     })),
   );

@@ -70,6 +70,14 @@ before(async () => {
   post('posts/2026/08/zzzz-zzt3-public', [
     'id: t3-public', 'title: Public twin', 'slug: zzt3-public', 'date: 2026-08-15T10:00:00Z',
   ]);
+  // A comment after draft: true is still a draft, and still takes no URL.
+  post('posts/2026/08/aaab-zzt3-draft2', [
+    'id: t3-draft2', 'title: Commented draft', 'slug: zzt3-pub2', 'draft: true # not yet',
+    'date: 2026-08-17T10:00:00Z',
+  ]);
+  post('posts/2026/08/zzzz-zzt3-pub2', [
+    'id: t3-pub2', 'title: Public two', 'slug: zzt3-pub2', 'date: 2026-08-18T10:00:00Z',
+  ]);
   post('posts/2026/08/zzt3-draft-yes', [
     'id: t3-draft-yes', 'title: Secret yes draft', 'slug: zzt3-draft-yes', 'draft: "yes"',
     'date: 2026-08-16T10:00:00Z',
@@ -176,4 +184,6 @@ test('a draft is nowhere on the site: no page, list, feed, sitemap, tag or photo
 test('a draft takes no address: the published post with the same slug keeps the clean one', () => {
   assert.match(read('zzt3-public/index.html'), /Public twin/);
   assert.ok(!site.has('zzt3-public-zzzz/index.html'));
+  assert.match(read('zzt3-pub2/index.html'), /Public two/, 'draft: true with a comment after it');
+  assert.doesNotMatch(read('index.html'), /Commented draft/);
 });
