@@ -33,6 +33,32 @@ test('removals keep growing, so a blog several versions behind still learns of t
   assert.deepEqual(m.removed, ['b.njk', 'gone.njk']);
 });
 
+// A case-insensitive filesystem cannot hold Base.njk and base.njk, and a
+// blog's update would see both at once: rename in two steps, two versions.
+test('a rename that changes only letter case is refused, saying how to do it in two steps', () => {
+  assert.throws(
+    () =>
+      buildManifest({
+        version: 'v2',
+        files: { '_includes/base.njk': 'b' },
+        previous: { version: 'v1', files: { '_includes/Base.njk': 'B' } },
+      }),
+    /_includes\/Base\.njk → _includes\/base\.njk changes only letter case\. Rename it in two steps, one per template version: first to another name \(say _includes\/base-1\.njk\), then to _includes\/base\.njk\./,
+  );
+});
+
+test('a path removed long ago, back in other case, is refused the same way', () => {
+  assert.throws(
+    () =>
+      buildManifest({
+        version: 'v3',
+        files: { 'Old.njk': 'o' },
+        previous: { version: 'v2', files: {}, removed: ['old.njk'] },
+      }),
+    /changes only letter case/,
+  );
+});
+
 test('names the files that only work together', () => {
   assert.deepEqual(buildManifest({ version: 'v', files: {}, previous: null }).groups, GROUPS);
   assert.deepEqual(GROUPS, [['package.json', 'package-lock.json', 'eleventy.config.js']]);

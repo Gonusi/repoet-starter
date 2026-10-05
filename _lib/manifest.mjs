@@ -37,6 +37,18 @@ export function buildManifest({ version, files, previous }) {
   );
   const earlier = new Set([...(previous?.removed ?? []), ...Object.keys(previous?.files ?? {})]);
   const removed = [...earlier].filter((path) => !(path in listed)).sort();
+  // A rename that changes only letter case is refused: a case-insensitive
+  // filesystem cannot hold both names, and a blog's update would delete one
+  // and see the other as the person's own file at once.
+  for (const gone of removed) {
+    const back = Object.keys(listed).find((path) => path.toLowerCase() === gone.toLowerCase());
+    if (back) {
+      const step = back.replace(/(\.[^./]+)?$/, (ext) => `-1${ext}`);
+      throw new Error(
+        `${gone} → ${back} changes only letter case. Rename it in two steps, one per template version: first to another name (say ${step}), then to ${back}.`,
+      );
+    }
+  }
   return { version, files: listed, ...(removed.length > 0 ? { removed } : {}), groups: GROUPS };
 }
 
