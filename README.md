@@ -22,8 +22,14 @@ stop using the app entirely.
   (this README and `package.json` included, say by adding a dependency), and a
   file of your own at a path the template starts using, is kept as you have it:
   Repoet names it and leaves merging the newer version to you, by hand. The
-  files you left alone are still updated. Your posts, `blog.json` and
-  `favicon.svg` are never part of a template update.
+  files you left alone are still updated. `package.json`,
+  `package-lock.json` and `eleventy.config.js` go together: if you changed
+  one, none of them is updated. A file the template no longer ships is
+  deleted by an update only if you never changed it. Your posts, `blog.json`
+  and `favicon.svg` are never part of a template update.
+- **Template maintainers**: after any commit that changes a template file, run
+  `node _lib/manifest.mjs` and commit `.repoet-template.json` on its own. It
+  lists renamed or deleted files under `removed`.
 
 ## Posts
 
