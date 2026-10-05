@@ -88,6 +88,14 @@ test('a favicon ships and is referenced', () => {
   assert.match(indexHtml, /<link rel="icon"/);
 });
 
+test('the fonts are published with their licence and copyright notices (SIL OFL 1.1)', () => {
+  assert.ok(site.has('fonts/Literata-400-normal.woff2'), 'the fonts are published');
+  const ofl = site.read('fonts/OFL.txt');
+  assert.match(ofl, /SIL OPEN FONT LICENSE Version 1\.1/);
+  assert.match(ofl, /Copyright 2017 The Literata Project Authors/);
+  assert.match(ofl, /Copyright © 2017 IBM Corp\. with Reserved Font Name "Plex"/);
+});
+
 test('post dates are machine-readable', () => {
   assert.match(postHtml, /<time datetime="2026-08-24/);
 });
