@@ -1,5 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { testSite } from './testSite.mjs';
 
 // A post's attachments are the USER'S data — the build publishes all of them,
@@ -41,7 +42,15 @@ before(async () => {
   // Files Eleventy could build as pages are attachments here too.
   site.write('posts/2026/08/aaaa0001-lake/notes.md', '# Raw notes {{ not.a.template }}');
   site.write('posts/2026/08/aaaa0001-lake/demo.html', '<p>{% raw %}demo</p>');
-  site.write('posts/2026/08/aaaa0001-lake/index.html', 'an attachment named like the page');
+  site.write('posts/2026/08/aaaa0001-lake/notes (old) [v2].md', 'Older notes {{ x }}');
+  // Named like the page, in other case: on a case-insensitive disk (macOS)
+  // a copy once overwrote the page.
+  site.write('posts/2026/08/aaaa0001-lake/INDEX.HTML', 'an attachment named like the page');
+  // Symbolic links are never followed: one to a folder once stopped the whole
+  // build (ENOTSUP on macOS), and one may point out of the post, even out of
+  // the repository, into a public site.
+  site.symlink('posts/2026/08/aaaa0001-lake/linked-gallery', 'gallery');
+  site.symlink('posts/2026/08/aaaa0001-lake/settings.json', '../../../../blog.json');
 
   // Two posts with the same slug: the second gets /same-bbbb0002/
   // (post-identity.md). Each has its own photo.jpg, and each page must show
@@ -67,6 +76,21 @@ before(async () => {
     'date: 2026-08-23T10:00:00Z',
   ], '![Custom](photo.jpg)');
   site.write('posts/2026/08/dddd0004-custom/photo.jpg', 'photo of the custom post');
+
+  // A hand-set permalink that is a file, not a folder: its files would land at
+  // the blog's root, where they must never replace the blog's own files.
+  post('posts/2026/08/eeee0005-about', [
+    'id: e5', 'title: About', 'slug: about', 'permalink: /about.html',
+    'date: 2026-08-24T10:00:00Z',
+  ], '![Me](me.jpg)');
+  site.write('posts/2026/08/eeee0005-about/me.jpg', 'photo of me');
+  site.write('posts/2026/08/eeee0005-about/favicon.svg', 'not the blog favicon');
+
+  // Hand-made content outside post folders keeps working as it always did:
+  // a single-file post, and a loose file published at its own path.
+  site.write('posts/flat.md', ['---', 'title: Flat', 'date: 2026-08-25T10:00:00Z', '---',
+    'A single-file post.', ''].join('\n'));
+  site.write('posts/img/logo.png', 'a shared logo');
 
   await site.build({ SITE_URL: SITE, PATH_PREFIX: PREFIX });
 });
@@ -155,10 +179,31 @@ test('a feed reader opens the photo too: the feed gives its full address', () =>
 test('an attached .md or .html file is published as it is, not built as a second page', () => {
   opens('lake/notes.md', '# Raw notes {{ not.a.template }}');
   opens('lake/demo.html', '<p>{% raw %}demo</p>');
+  opens('lake/notes (old) [v2].md', 'Older notes {{ x }}');
 });
 
-test('an attachment never replaces the post page it sits beside', () => {
+test('an attachment never replaces the post page it sits beside, whatever the case', () => {
   assert.match(site.read('lake/index.html'), /Sunrise over a calm lake/);
+  assert.ok(!site.has('lake/INDEX.HTML') || /Sunrise/.test(site.read('lake/INDEX.HTML')));
+});
+
+test("an attachment never replaces the blog's own files, such as its favicon", () => {
+  assert.equal(site.read('favicon.svg'), readFileSync(new URL('../favicon.svg', import.meta.url), 'utf-8'));
+  opens(fileBehind(pageAddress(site.read('about.html')), 'me.jpg'), 'photo of me');
+});
+
+test('a symbolic link in a post folder is not followed, and the build still succeeds', () => {
+  assert.ok(!site.has('lake/linked-gallery/second.jpg'), 'a linked folder is not published');
+  assert.ok(!site.has('lake/linked-gallery'));
+  assert.ok(!site.has('lake/settings.json'), 'a link out of the post is not published');
+});
+
+test('a single-file post under posts/ is still built at its own address', () => {
+  assert.match(site.read('flat/index.html'), /A single-file post\./);
+});
+
+test('a file under posts/ outside any post folder is still published at its path', () => {
+  opens('posts/img/logo.png', 'a shared logo');
 });
 
 test('the markdown source itself is not published as a raw file', () => {
@@ -171,4 +216,35 @@ test('a photo is published once, at its post, not a second time at its folder pa
   // limit and was never an address the post linked.
   assert.ok(!site.has('posts/2026/08/aaaa0001-lake/img-0412.jpg'));
   assert.ok(!site.has('posts/posts.11tydata.js'), 'the build data file is not published');
+});
+
+// `npm run dev` rebuilds when a file changes. A photo is not a page, so
+// Eleventy did not watch it, and a changed or added photo never reached the
+// preview until something else changed.
+test('while the blog is previewed with npm run dev, a changed or added attachment is published', { timeout: 60_000 }, async () => {
+  const dev = testSite();
+  const dir = 'posts/2026/08/ffff0006-dev';
+  dev.write(`${dir}/index.md`, ['---', 'title: Dev', 'slug: dev', 'date: 2026-08-26T10:00:00Z', '---',
+    '![Photo](photo.jpg)', ''].join('\n'));
+  dev.write(`${dir}/photo.jpg`, 'first version');
+  let stop = () => {};
+  const watching = dev
+    .build({ SITE_URL: '', PATH_PREFIX: '/' }, { args: ['--watch'], onStart: (b) => (stop = b.closeInput) })
+    .catch(() => {}); // stopped on purpose below
+  const until = async (ok, what) => {
+    for (let i = 0; i < 200 && !ok(); i++) await new Promise((r) => setTimeout(r, 100));
+    assert.ok(ok(), what);
+  };
+  try {
+    await until(() => dev.has('dev/photo.jpg') && dev.read('dev/photo.jpg') === 'first version', 'first build');
+    await new Promise((r) => setTimeout(r, 1000)); // the watcher is ready
+    dev.write(`${dir}/photo.jpg`, 'second version');
+    dev.write(`${dir}/route.gpx`, 'a new file');
+    await until(() => dev.read('dev/photo.jpg') === 'second version', 'the changed photo is published');
+    await until(() => dev.has('dev/route.gpx'), 'the added file is published');
+  } finally {
+    stop();
+    await watching;
+    dev.dispose();
+  }
 });

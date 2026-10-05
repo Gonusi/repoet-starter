@@ -3,7 +3,7 @@
 // only inside posts/** and blog.json; a template update you accept in Repoet
 // writes this file and the other template files, and only while you have not
 // edited them (see README.md).
-import { copyFileSync, globSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, globSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { feedPlugin } from '@11ty/eleventy-plugin-rss';
 
@@ -21,6 +21,11 @@ function readSlug(inputPath, text) {
   const dir = inputPath.split('/').slice(-2, -1)[0] ?? '';
   return readScalar(text, 'slug') || dir.split('-').slice(1).join('-') || dir;
 }
+
+/** Files Eleventy would build as pages. Inside a post folder they are attachments. */
+const PAGE_FILE = /\.(md|html|njk|liquid|11ty\.[cm]?js)$/i;
+/** Eleventy's own data files (posts/posts.11tydata.js): never published. */
+const DATA_FILE = /\.11tydata\.([cm]?js|json)$/i;
 
 /**
  * `draft: true` keeps a post off the site (docs/content-contract/frontmatter.md).
@@ -89,12 +94,16 @@ export default function (eleventyConfig) {
   // sitemap or tag page. Its attachments stay unpublished too (below).
   eleventyConfig.addPreprocessor('drafts', 'md', (data) => (isDraft(data.draft) ? false : undefined));
 
-  // A post folder holds one page, its index.md. Anything else in it is an
-  // attachment, even when Eleventy could build it: an attached notes.md or
-  // demo.html once became a second page at the post's address and failed the
-  // build.
-  eleventyConfig.ignores.add('posts/**/!(index).md');
-  eleventyConfig.ignores.add('posts/**/*.{html,njk,liquid,11ty.js,11ty.cjs,11ty.mjs}');
+  // A post folder (a folder with an index.md) holds one page, its index.md.
+  // Anything else in it is an attachment, even when Eleventy could build it:
+  // an attached notes.md or demo.html once became a second page at the post's
+  // address and failed the build. Outside post folders nothing changes: a
+  // single-file post such as posts/hello.md is still a page.
+  for (const folder of globSync('posts/**/index.md').map(dirname)) {
+    for (const file of attachmentsIn(folder, '', { quiet: true })) {
+      if (PAGE_FILE.test(file)) eleventyConfig.ignores.add(escapeGlob(`${folder}/${file}`));
+    }
+  }
 
   // Post attachments live beside index.md and are published beside the
   // post's page, wherever that page is (its slug, a collision suffix, a
@@ -102,32 +111,46 @@ export default function (eleventyConfig) {
   // writes (`![…](photo.jpg)`) open them. Copying them to their folder's path
   // (posts/2026/10/<id>-<slug>/) broke every photo on every blog (2026-10-05).
   // Attachments are the user's data: ALL of them, whatever the extension — a
-  // fixed list silently dropped .fit files (2026-08-31).
-  eleventyConfig.on('eleventy.after', ({ results, outputMode }) => {
+  // fixed list silently dropped .fit files (2026-08-31). Any other file under
+  // posts/, outside a post folder, is published at its own path, as before.
+  //
+  // An attachment never replaces a file of the blog: a page, a file copied by
+  // a passthrough (the favicon, fonts…) or another post's file. Addresses are
+  // compared ignoring case, because on a case-insensitive disk (macOS)
+  // INDEX.HTML once overwrote index.html.
+  let copied = [];
+  eleventyConfig.on('eleventy.before', () => (copied = []));
+  eleventyConfig.on('eleventy.passthrough', ({ map }) => copied.push(...Object.keys(map ?? {})));
+  eleventyConfig.on('eleventy.after', ({ dir, results, outputMode }) => {
     if (outputMode && outputMode !== 'fs') return;
-    const pages = new Set(results.map((r) => r.outputPath).filter(Boolean).map((p) => normalize(String(p))));
-    const written = new Map(); // site file -> the post folder it came from
+    const output = normalize(dir?.output ?? '_site');
+    const key = (path) => normalize(path).toLowerCase();
+    const taken = new Map(); // site file (any case) -> what is there
+    for (const { outputPath } of results) if (outputPath) taken.set(key(String(outputPath)), 'a page of the blog');
+    for (const url of copied) taken.set(key(join(output, decodeURI(url))), 'a file of the blog');
+    const publish = (from, file, to) => {
+      const target = join(to, file);
+      const there = taken.get(key(target));
+      if (there) {
+        console.warn(`[repoet] ${from}/${file} was not published: ${there} is at that address.`);
+        return;
+      }
+      mkdirSync(dirname(target), { recursive: true });
+      copyFileSync(join(from, file), target);
+      taken.set(key(target), `${from}/${file}`);
+    };
     for (const { inputPath, outputPath } of results) {
       const source = String(inputPath).replace(/^\.\//, '');
       if (!outputPath || !/^posts\/.+\/index\.md$/.test(source)) continue;
       const from = dirname(source);
       const to = dirname(normalize(String(outputPath)));
-      for (const file of attachmentsIn(from)) {
-        const target = join(to, file);
-        if (pages.has(target)) {
-          console.warn(`[repoet] ${from}/${file} was not published: a page of the blog is at that address.`);
-          continue;
-        }
-        if (written.has(target)) {
-          console.warn(`[repoet] ${from}/${file} was not published: ${written.get(target)} has a file at that address.`);
-          continue;
-        }
-        mkdirSync(dirname(target), { recursive: true });
-        copyFileSync(join(from, file), target);
-        written.set(target, from);
-      }
+      for (const file of attachmentsIn(from)) publish(from, file, to);
     }
+    for (const file of looseFilesIn('posts')) publish('posts', file, join(output, 'posts'));
   });
+  // `npm run dev` rebuilds when a watched file changes; a photo is not a page,
+  // so without this a changed or added attachment never reached the preview.
+  eleventyConfig.addWatchTarget('posts/');
 
   // The README documents the repository on GitHub; it is not a page of the
   // blog — and its code examples contain template syntax that must never be
@@ -231,18 +254,48 @@ export default function (eleventyConfig) {
   };
 }
 
-/** A post folder's attachments, as paths inside it: everything but its page. */
-function attachmentsIn(folder, prefix = '') {
+/**
+ * A post folder's attachments, as paths inside it: everything but its page.
+ * A symbolic link is never followed: one to a folder stopped the whole build,
+ * and one may point out of the post, even out of the repository.
+ */
+function attachmentsIn(folder, prefix = '', { quiet = false } = {}) {
   const out = [];
   for (const entry of readdirSync(join(folder, prefix), { withFileTypes: true })) {
     if (entry.name.startsWith('.')) continue; // .DS_Store and the like
     const path = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (entry.isDirectory()) {
+    if (entry.isSymbolicLink()) {
+      if (quiet) out.push(path); // listed only so a linked page file is ignored
+      else console.warn(`[repoet] ${folder}/${path} was not published: it is a symbolic link.`);
+    } else if (entry.isDirectory()) {
       // A folder that is a post of its own publishes at its own address.
-      if (!readdirSync(join(folder, path)).includes('index.md')) out.push(...attachmentsIn(folder, path));
+      if (!existsSync(join(folder, path, 'index.md'))) out.push(...attachmentsIn(folder, path, { quiet }));
     } else if (path !== 'index.md') {
       out.push(path);
     }
   }
   return out;
+}
+
+/**
+ * Files under posts/ outside every post folder, as paths inside posts/: what
+ * the blog published at their own path before posts had folders. Pages and
+ * Eleventy's data files are built, not copied; symbolic links are skipped.
+ */
+function looseFilesIn(root, prefix = '') {
+  const out = [];
+  const here = join(root, prefix);
+  if (!existsSync(here) || existsSync(join(here, 'index.md'))) return out; // a post folder
+  for (const entry of readdirSync(here, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') || entry.isSymbolicLink()) continue;
+    const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) out.push(...looseFilesIn(root, path));
+    else if (!PAGE_FILE.test(entry.name) && !DATA_FILE.test(entry.name)) out.push(path);
+  }
+  return out;
+}
+
+/** A path as a glob that matches only itself. */
+function escapeGlob(path) {
+  return path.replace(/[\\*?[\]{}()!+@]/g, '\\$&');
 }

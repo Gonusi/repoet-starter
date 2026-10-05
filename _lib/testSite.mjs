@@ -111,11 +111,12 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
  * Run Eleventy in `dir`. Resolves when it succeeds; rejects when it fails or
  * outlives `timeoutMs`. Either way, everything it started is stopped first.
  * `onStart` gets the process group and a way to close the build's input, for
- * the tests of this helper.
+ * the tests of this helper and to stop a build started with `--watch`.
+ * `args` are passed to Eleventy.
  */
-function runBuild(dir, env, { timeoutMs = BUILD_TIME_LIMIT_MS, onStart } = {}) {
+function runBuild(dir, env, { timeoutMs = BUILD_TIME_LIMIT_MS, onStart, args = [] } = {}) {
   return new Promise((resolve, reject) => {
-    const guard = spawn(process.execPath, ['-e', GUARD, ELEVENTY], {
+    const guard = spawn(process.execPath, ['-e', GUARD, ELEVENTY, ...args], {
       cwd: dir,
       env: { ...process.env, ...env },
       detached: true,
@@ -181,6 +182,11 @@ export function testSite() {
     write(path, content) {
       mkdirSync(dirname(at(path)), { recursive: true });
       writeFileSync(at(path), content);
+    },
+    /** Make a symbolic link in the copy. The target may point anywhere: it is not written. */
+    symlink(path, target) {
+      mkdirSync(dirname(at(path)), { recursive: true });
+      symlinkSync(target, at(path));
     },
     /** Remove a file or folder from the copy. */
     remove(path) {
