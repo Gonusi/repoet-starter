@@ -7,13 +7,26 @@ import { feedPlugin } from '@11ty/eleventy-plugin-rss';
 
 import { resolvePermalinks, shortIdFromPath } from './_lib/permalinks.js';
 
-/** Read the `slug:` scalar from a post's frontmatter (simple by contract). */
-function readSlug(inputPath) {
-  const text = readFileSync(inputPath, 'utf-8');
+/** A top-level scalar of a post's frontmatter, unquoted (simple by contract). */
+function readScalar(text, key) {
   const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
-  const m = fm && /^slug:[ \t]*(.+?)[ \t]*$/m.exec(fm[1]);
+  const m = fm && new RegExp(`^${key}:[ \\t]*(.+?)[ \\t]*$`, 'm').exec(fm[1]);
+  return m ? m[1].replace(/^["']|["']$/g, '') : '';
+}
+
+/** Read the `slug:` scalar from a post's frontmatter. */
+function readSlug(inputPath, text) {
   const dir = inputPath.split('/').slice(-2, -1)[0] ?? '';
-  return (m && m[1].replace(/^["']|["']$/g, '')) || dir.split('-').slice(1).join('-') || dir;
+  return readScalar(text, 'slug') || dir.split('-').slice(1).join('-') || dir;
+}
+
+/**
+ * `draft: true` keeps a post off the site (docs/content-contract/frontmatter.md).
+ * Anything that reads as yes counts, so a draft is never published by a
+ * spelling: a draft published by mistake cannot be taken back.
+ */
+function isDraft(value) {
+  return value === true || /^(true|yes|on)$/i.test(String(value ?? '').trim());
 }
 
 export default function (eleventyConfig) {
@@ -51,9 +64,16 @@ export default function (eleventyConfig) {
   // Resolve slug collisions once, up front, so a duplicate slug never
   // hard-fails the build (docs/content-contract/post-identity.md). Posts read
   // their final URL slug from this map via posts.11tydata.js.
-  const postPaths = globSync('posts/**/index.md');
+  // A draft takes no URL, so it never pushes a published post to a suffix.
+  const posts = globSync('posts/**/index.md')
+    .map((p) => ({ inputPath: p, text: readFileSync(p, 'utf-8') }))
+    .filter(({ text }) => !isDraft(readScalar(text, 'draft')));
   const { urls, warnings } = resolvePermalinks(
-    postPaths.map((p) => ({ inputPath: p, slug: readSlug(p), shortId: shortIdFromPath(p) })),
+    posts.map(({ inputPath, text }) => ({
+      inputPath,
+      slug: readSlug(inputPath, text),
+      shortId: shortIdFromPath(inputPath),
+    })),
   );
   for (const w of warnings) console.warn(`[repoet] ${w}`);
   // Key by a normalized suffix so posts.11tydata.js can match Eleventy's inputPath.
@@ -62,6 +82,10 @@ export default function (eleventyConfig) {
     permalinkMap[inputPath.replace(/^\.\//, '')] = urlSlug;
   }
   eleventyConfig.addGlobalData('permalinkMap', permalinkMap);
+
+  // A draft is not built at all: no page, and it is in no list, feed,
+  // sitemap or tag page. Its attachments stay unpublished too (below).
+  eleventyConfig.addPreprocessor('drafts', 'md', (data) => (isDraft(data.draft) ? false : undefined));
 
   // A post folder holds one page, its index.md. Anything else in it is an
   // attachment, even when Eleventy could build it: an attached notes.md or

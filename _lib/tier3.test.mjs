@@ -60,6 +60,20 @@ before(async () => {
     '  TOKEN: ${{ secrets.TOKEN }}',
     '```',
   ].join('\n'));
+  // `draft: true` keeps a post off the site (content-contract/frontmatter.md),
+  // and it takes no URL: the published post with the same slug keeps its own.
+  post('posts/2026/08/aaaa-zzt3-draft', [
+    'id: t3-draft', 'title: Secret draft', 'slug: zzt3-public', 'draft: true',
+    'date: 2026-08-14T10:00:00Z', 'tags: [secretdrafttag]',
+  ], '![Draft photo](draft-photo.jpg)');
+  site.write('posts/2026/08/aaaa-zzt3-draft/draft-photo.jpg', 'unpublished');
+  post('posts/2026/08/zzzz-zzt3-public', [
+    'id: t3-public', 'title: Public twin', 'slug: zzt3-public', 'date: 2026-08-15T10:00:00Z',
+  ]);
+  post('posts/2026/08/zzt3-draft-yes', [
+    'id: t3-draft-yes', 'title: Secret yes draft', 'slug: zzt3-draft-yes', 'draft: "yes"',
+    'date: 2026-08-16T10:00:00Z',
+  ]);
   // Enough posts to force a second archive page (page size 50).
   for (let i = 0; i < 52; i++) {
     post(`posts/2026/07/zzt3-filler-${String(i).padStart(2, '0')}`, [
@@ -146,4 +160,20 @@ test('template syntax in a post is shown exactly as written, in prose and in cod
   assert.match(html, /In prose: \{\{ page.title \}\} and \{% if user %\}hello\{% endif %\}\./);
   assert.match(html, /<code>\{\{ x \}\}<\/code> and <code>\{% y %\}<\/code>/);
   assert.match(html, /TOKEN: \$\{\{ secrets.TOKEN \}\}/);
+});
+
+test('a draft is nowhere on the site: no page, list, feed, sitemap, tag or photo', () => {
+  const everywhere = ['index.html', 'page/2/index.html', 'feed.xml', 'sitemap.xml']
+    .map(read)
+    .join('\n');
+  assert.doesNotMatch(everywhere, /Secret draft|Secret yes draft/);
+  assert.ok(!site.has('zzt3-draft-yes/index.html'));
+  assert.ok(!site.has('tags/secretdrafttag/index.html'));
+  assert.ok(!site.has('zzt3-public/draft-photo.jpg'));
+  assert.ok(!site.has('posts/2026/08/aaaa-zzt3-draft/draft-photo.jpg'));
+});
+
+test('a draft takes no address: the published post with the same slug keeps the clean one', () => {
+  assert.match(read('zzt3-public/index.html'), /Public twin/);
+  assert.ok(!site.has('zzt3-public-zzzz/index.html'));
 });
