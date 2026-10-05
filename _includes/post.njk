@@ -4,7 +4,7 @@ ogType: article
 ---
 <article>
   {% if title %}<h1>{{ title }}</h1>{% endif %}
-  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% if tags %} · {% for t in tags %}<a href="{{ ('/tags/' + (t | slugify) + '/') | url }}">{{ t }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}{% if blog.author %} · {{ blog.author }}{% endif %}</p>
+  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% if tags %} · {% for t in tags %}{% set tagPage = t | tagSlug %}{% if tagPage %}<a href="{{ ("/tags/" + tagPage + "/") | url }}">{{ t }}</a>{% else %}{{ t }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}{% if blog.author %} · {{ blog.author }}{% endif %}</p>
   {{ content | safe }}
 </article>
 {# Machine-readable twin of the article, for search results. #}

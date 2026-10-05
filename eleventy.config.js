@@ -146,19 +146,42 @@ export default function (eleventyConfig) {
   );
 
   // ——— Tier 3 SEO (PROGRESS, 2026-08-30) ———
-  // One entry per tag: [name, posts…], newest first — drives /tags/<slug>/.
+  // A tag's address. Tags that differ only in case or punctuation ("Go",
+  // "go") share one page: two pages at /tags/go/ failed the whole build
+  // (2026-10-05). A tag with no Latin letters or digits ("日本語") keeps its
+  // own letters; one with none at all ("🙂") gets no page.
+  const slugify = eleventyConfig.getFilter('slugify');
+  const tagSlug = (tag) =>
+    slugify(String(tag)) ||
+    String(tag).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
+  eleventyConfig.addFilter('tagSlug', tagSlug);
+
+  // One entry per tag page: { name, slug, posts }, newest first — drives
+  // /tags/<slug>/. The name is the spelling used most (the oldest post's on a
+  // tie).
   eleventyConfig.addCollection('tagList', (api) => {
-    const byTag = new Map();
-    for (const post of api.getFilteredByGlob('posts/**/index.md')) {
-      for (const tag of post.data.tags ?? []) {
-        if (!byTag.has(tag)) byTag.set(tag, []);
-        byTag.get(tag).push(post);
+    const bySlug = new Map();
+    const oldestFirst = api
+      .getFilteredByGlob('posts/**/index.md')
+      .sort((a, b) => (a.data.date < b.data.date ? -1 : 1));
+    for (const post of oldestFirst) {
+      const tags = [].concat(post.data.tags ?? []);
+      const seen = new Set();
+      for (const tag of tags) {
+        const slug = tagSlug(tag);
+        if (!slug) continue;
+        if (!bySlug.has(slug)) bySlug.set(slug, { spellings: new Map(), posts: [] });
+        const group = bySlug.get(slug);
+        group.spellings.set(String(tag), (group.spellings.get(String(tag)) ?? 0) + 1);
+        if (!seen.has(slug)) group.posts.push(post); // once, even when tagged Go and go
+        seen.add(slug);
       }
     }
-    return [...byTag.entries()]
-      .map(([name, posts]) => ({
-        name,
-        posts: posts.sort((a, b) => (a.data.date < b.data.date ? 1 : -1)),
+    return [...bySlug.entries()]
+      .map(([slug, { spellings, posts }]) => ({
+        name: [...spellings].reduce((best, s) => (s[1] > best[1] ? s : best))[0],
+        slug,
+        posts: posts.reverse(),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   });
