@@ -1,15 +1,17 @@
 {
-  "version": "2026-10-05.27692b3",
+  "version": "2026-10-05.091b6f3",
   "files": {
     ".github/workflows/deploy.yml": "e72332549f91b14356fc74f3d29fa9cbc4af7c04",
     ".gitignore": "24c994505350cba2eedd447b5bb3dc28fe83f5d8",
     "404.njk": "98dc5a6d68e58e10f09bcd7825a1a60e3540f0bc",
     "NOTICE": "dd77fc33b55dab4fa29c2098c7514ed9ff24468e",
-    "README.md": "ec88cfb07532aed281151dce3a773c1f51c69e66",
+    "README.md": "d411a65e213436f4566d2b660dd44484bed5de18",
     "_includes/layout.njk": "61b2c5ef30b8bad8ee63efa120a825c06deff532",
     "_includes/post.njk": "3b7a14384b87f96bbc004e5e0825575165c66a7f",
     "_lib/attachments.test.mjs": "3271c25376c6c513f239c77dd6f9475dacd7d694",
     "_lib/empty.test.mjs": "3ad558738da2741eebf4b6d98a5209b74d6c3fa1",
+    "_lib/manifest.mjs": "0c150feec3ff1a1ba092a35bde19b15bae7deb69",
+    "_lib/manifest.test.mjs": "acddd2362fc9e66481795d00ddcd71ce365391c6",
     "_lib/permalinks.js": "2070300e8cb6e90e0205a4c55d6260887ca29a1f",
     "_lib/permalinks.test.mjs": "3e9b18c67544deb2dedca15cce78080a9d310f15",
     "_lib/seo.test.mjs": "2913876f3d010781722a7a21579fac9b251c9391",
@@ -29,5 +31,12 @@
     "robots.njk": "aa47315e9de5e37381de194fe446b50ae986b9af",
     "sitemap.njk": "d830ee53e350f08202300ba3412e8da2c9ba1837",
     "tags.njk": "e5fda451c6782fcc234ad915317ca62b0bd3d7cf"
-  }
+  },
+  "groups": [
+    [
+      "package.json",
+      "package-lock.json",
+      "eleventy.config.js"
+    ]
+  ]
 }
