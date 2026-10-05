@@ -18,9 +18,11 @@ stop using the app entirely.
 - **`.repoet-template.json`** records which template files this blog received,
   byte for byte. It is how Repoet knows you have not edited a file before it
   updates it. Delete it and Repoet can no longer offer updates.
-- Once you edit a template file, Repoet never overwrites it: it names the file
-  and leaves updating it to you. Your posts, `blog.json` and `favicon.svg` are
-  never part of a template update.
+- Once you edit or delete any template file (this README and `package.json`
+  included, say by adding a dependency), Repoet offers no template update at
+  all: it names the edited files and leaves updating to you, by hand. It does
+  not update the files you left alone either. Your posts, `blog.json` and
+  `favicon.svg` are never part of a template update and never block one.
 
 ## Posts
 
@@ -28,8 +30,13 @@ stop using the app entirely.
   you wrote them.
 - `draft: true` in a post's frontmatter keeps it off the site: no page, and it
   is in no list, feed, sitemap or tag page. Its files are not published either.
-- Files beside a post's `index.md` (photos, PDFs, anything) are published
-  beside the post's page, so `![](photo.jpg)` works on the site as it reads.
+- Files beside a post's `index.md` (photos, PDFs, anything, including `.md` or
+  `.html` files, which are published as they are) are published beside the
+  post's page, so `![](photo.jpg)` works on the site as it reads. A file never
+  replaces a page or another file of the site, and symbolic links are not
+  published. Other files under `posts/`, outside a post's folder, are
+  published at their own path, and a single-file post such as
+  `posts/hello.md` is still a page.
 - Tags that differ only in case ("Go", "go") share one tag page.
 
 ## Custom post fields
