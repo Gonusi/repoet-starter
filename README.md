@@ -18,11 +18,12 @@ stop using the app entirely.
 - **`.repoet-template.json`** records which template files this blog received,
   byte for byte. It is how Repoet knows you have not edited a file before it
   updates it. Delete it and Repoet can no longer offer updates.
-- Once you edit or delete any template file (this README and `package.json`
-  included, say by adding a dependency), Repoet offers no template update at
-  all: it names the edited files and leaves updating to you, by hand. It does
-  not update the files you left alone either. Your posts, `blog.json` and
-  `favicon.svg` are never part of a template update and never block one.
+- A template update goes file by file. A template file you edited or deleted
+  (this README and `package.json` included, say by adding a dependency), and a
+  file of your own at a path the template starts using, is kept as you have it:
+  Repoet names it and leaves merging the newer version to you, by hand. The
+  files you left alone are still updated. Your posts, `blog.json` and
+  `favicon.svg` are never part of a template update.
 
 ## Posts
 
