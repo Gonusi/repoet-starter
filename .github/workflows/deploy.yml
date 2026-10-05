@@ -1,9 +1,14 @@
-# Deploys the blog to GitHub Pages on every push to the default branch.
+# Deploys the blog to GitHub Pages on every push to the default branch, and
+# when you run it by hand.
 # Repoet relies only on "a push produces a Pages deployment readable via the
 # API" — everything in this file is yours to customize.
 name: Deploy
 on:
   push: # any branch; the build job below keeps only the default one
+  # Run it by hand (Actions → Deploy → Run workflow) after changing the
+  # blog's address, such as adding a custom domain: Pages does not rebuild
+  # the site on its own, and links built for the old address break.
+  workflow_dispatch:
 permissions:
   contents: read
   pages: write

@@ -1,6 +1,8 @@
 // Repoet starter — deliberately tiny (docs/domain/invisible-layers.md layer 9).
-// Everything here belongs to YOU after creation; Repoet only writes inside
-// posts/** and blog.json (docs/content-contract/repository-layout.md).
+// Everything here belongs to YOU after creation. Publishing from Repoet writes
+// only inside posts/** and blog.json; a template update you accept in Repoet
+// writes this file and the other template files, and only while you have not
+// edited them (see README.md).
 import { copyFileSync, globSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
 import { feedPlugin } from '@11ty/eleventy-plugin-rss';

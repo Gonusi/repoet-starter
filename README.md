@@ -1,10 +1,36 @@
 # Your Repoet blog
 
+Made with Repoet. Just created this repository? Go back to the Repoet tab to
+finish; you can close this page.
+
 This repository **is** your blog. Posts live under `posts/**` as markdown with
 frontmatter; [Eleventy](https://www.11ty.dev/) builds the site; GitHub Pages
-serves it. The [Repoet app](https://repoet.pages.dev) writes only inside
-`posts/**` and `blog.json` — everything else here is yours to edit, and the
-blog keeps working if you stop using the app entirely.
+serves it. Everything here is yours to edit, and the blog keeps working if you
+stop using the app entirely.
+
+## What the Repoet app writes
+
+- **Publishing** writes only inside `posts/**` and `blog.json`.
+- **A template update** writes the template's own files (`eleventy.config.js`,
+  `_includes/`, `.github/workflows/deploy.yml`, `fonts/` and the rest), and
+  only when you accept it in Repoet's settings. It is one ordinary commit, so
+  `git revert` undoes it.
+- **`.repoet-template.json`** records which template files this blog received,
+  byte for byte. It is how Repoet knows you have not edited a file before it
+  updates it. Delete it and Repoet can no longer offer updates.
+- Once you edit a template file, Repoet never overwrites it: it names the file
+  and leaves updating it to you. Your posts, `blog.json` and `favicon.svg` are
+  never part of a template update.
+
+## Posts
+
+- A post is Markdown and nothing else: `{{ }}` and `{% %}` appear exactly as
+  you wrote them.
+- `draft: true` in a post's frontmatter keeps it off the site: no page, and it
+  is in no list, feed, sitemap or tag page. Its files are not published either.
+- Files beside a post's `index.md` (photos, PDFs, anything) are published
+  beside the post's page, so `![](photo.jpg)` works on the site as it reads.
+- Tags that differ only in case ("Go", "go") share one tag page.
 
 ## Custom post fields
 
@@ -29,8 +55,8 @@ publishing.
 
 ### Worked example: render a .fit activity file
 
-Every attachment beside a post is copied to the site, so a `.fit` named in
-frontmatter is already downloadable at `/<slug>/<name>`. To *render* it,
+Every attachment beside a post is published beside the post's page, so a
+`.fit` named in frontmatter is already downloadable at `/<slug>/<name>`. To *render* it,
 parse it at build time — your repository, your dependencies:
 
 ```bash
@@ -66,7 +92,15 @@ eleventyConfig.addAsyncShortcode('activity', async function (name) {
 The app never learns what an activity file is — it offers the typed slot, your
 build gives it meaning.
 
+## Changed the blog's address?
+
+After adding a custom domain (or renaming the repository), publish anything,
+or run the Deploy workflow by hand (Actions → Deploy → Run workflow). Pages
+does not rebuild the site on its own, and links built for the old address
+break until it does.
+
 ## Licenses
 
-See `NOTICE` (theme adapted from no-style-please, MIT; fonts under the SIL
-Open Font License).
+See `NOTICE`: the theme is adapted from no-style-please (MIT), and the fonts
+are under the SIL Open Font License, whose text is in `fonts/OFL.txt` and is
+published with the fonts.

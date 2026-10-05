@@ -65,3 +65,14 @@ test('a push to another branch never cancels the blog build', () => {
   assert.match(wf, /concurrency:\s*\n\s*group:\s*pages-\$\{\{\s*github\.ref\s*\}\}/,
     'each branch has its own concurrency group');
 });
+
+// A Pages site built with GitHub Actions is not rebuilt when its address
+// changes. A custom domain on a project blog moves it from /blog/ to /, and
+// every link built for /blog/ breaks until the next push (journey fixes row
+// 43). The owner can run the workflow by hand instead of publishing something.
+
+test('the deploy can be run by hand, still only from the default branch', () => {
+  assert.match(wf, /^on:\s*\n(?:\s+.*\n)*?\s+workflow_dispatch:/m, 'Run workflow is offered');
+  assert.match(wf, /build:[\s\S]{0,400}if:\s*github\.ref\s*==\s*format\('refs\/heads\/\{0\}'/,
+    'a run on another branch still builds nothing');
+});
