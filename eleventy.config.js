@@ -1,7 +1,8 @@
 // Repoet starter — deliberately tiny (docs/domain/invisible-layers.md layer 9).
 // Everything here belongs to YOU after creation; Repoet only writes inside
 // posts/** and blog.json (docs/content-contract/repository-layout.md).
-import { readFileSync, globSync } from 'node:fs';
+import { copyFileSync, globSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, normalize } from 'node:path';
 import { feedPlugin } from '@11ty/eleventy-plugin-rss';
 
 import { resolvePermalinks, shortIdFromPath } from './_lib/permalinks.js';
@@ -62,11 +63,45 @@ export default function (eleventyConfig) {
   }
   eleventyConfig.addGlobalData('permalinkMap', permalinkMap);
 
-  // Post attachments live beside index.md and are copied through untouched.
-  // Attachments are the user's data: copy ALL of them, whatever the extension
-  // — a fixed list silently dropped .fit files and anything else it hadn't
-  // foreseen (2026-08-31). Only the markdown itself is a template.
-  eleventyConfig.addPassthroughCopy('posts/**/*.!(md)');
+  // A post folder holds one page, its index.md. Anything else in it is an
+  // attachment, even when Eleventy could build it: an attached notes.md or
+  // demo.html once became a second page at the post's address and failed the
+  // build.
+  eleventyConfig.ignores.add('posts/**/!(index).md');
+  eleventyConfig.ignores.add('posts/**/*.{html,njk,liquid,11ty.js,11ty.cjs,11ty.mjs}');
+
+  // Post attachments live beside index.md and are published beside the
+  // post's page, wherever that page is (its slug, a collision suffix, a
+  // changed slug or a hand-set permalink), so the relative links the app
+  // writes (`![…](photo.jpg)`) open them. Copying them to their folder's path
+  // (posts/2026/10/<id>-<slug>/) broke every photo on every blog (2026-10-05).
+  // Attachments are the user's data: ALL of them, whatever the extension — a
+  // fixed list silently dropped .fit files (2026-08-31).
+  eleventyConfig.on('eleventy.after', ({ results, outputMode }) => {
+    if (outputMode && outputMode !== 'fs') return;
+    const pages = new Set(results.map((r) => r.outputPath).filter(Boolean).map((p) => normalize(String(p))));
+    const written = new Map(); // site file -> the post folder it came from
+    for (const { inputPath, outputPath } of results) {
+      const source = String(inputPath).replace(/^\.\//, '');
+      if (!outputPath || !/^posts\/.+\/index\.md$/.test(source)) continue;
+      const from = dirname(source);
+      const to = dirname(normalize(String(outputPath)));
+      for (const file of attachmentsIn(from)) {
+        const target = join(to, file);
+        if (pages.has(target)) {
+          console.warn(`[repoet] ${from}/${file} was not published: a page of the blog is at that address.`);
+          continue;
+        }
+        if (written.has(target)) {
+          console.warn(`[repoet] ${from}/${file} was not published: ${written.get(target)} has a file at that address.`);
+          continue;
+        }
+        mkdirSync(dirname(target), { recursive: true });
+        copyFileSync(join(from, file), target);
+        written.set(target, from);
+      }
+    }
+  });
 
   // The README documents the repository on GitHub; it is not a page of the
   // blog — and its code examples contain template syntax that must never be
@@ -86,11 +121,13 @@ export default function (eleventyConfig) {
     const m = /<img[^>]+src="([^"]+)"/.exec(content || '');
     return m ? m[1] : '';
   });
-  // Crawlers ignore relative og:image/og:url — make repo paths absolute.
+  // Crawlers ignore relative og:image/og:url — make repo paths absolute. A
+  // root path is the blog's root; anything else is relative to the page, as
+  // the browser reads it (the attachment sits beside the page, above).
   eleventyConfig.addFilter('absUrl', (src, pageUrl) => {
     if (!src || !siteUrl) return '';
     if (/^https?:\/\//.test(src)) return src;
-    return src.startsWith('/') ? `${siteUrl}${src}` : `${siteUrl}${pageUrl}${src}`;
+    return src.startsWith('/') ? `${siteUrl}${src}` : new URL(src, `${siteUrl}${pageUrl}`).href;
   });
   // `</` must not terminate the script block a JSON-LD object lives in.
   eleventyConfig.addFilter('jsonld', (obj) =>
@@ -138,4 +175,20 @@ export default function (eleventyConfig) {
     // GitHub's configure-pages action provides PATH_PREFIX per deploy.
     pathPrefix: process.env.PATH_PREFIX || '/',
   };
+}
+
+/** A post folder's attachments, as paths inside it: everything but its page. */
+function attachmentsIn(folder, prefix = '') {
+  const out = [];
+  for (const entry of readdirSync(join(folder, prefix), { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue; // .DS_Store and the like
+    const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      // A folder that is a post of its own publishes at its own address.
+      if (!readdirSync(join(folder, path)).includes('index.md')) out.push(...attachmentsIn(folder, path));
+    } else if (path !== 'index.md') {
+      out.push(path);
+    }
+  }
+  return out;
 }
