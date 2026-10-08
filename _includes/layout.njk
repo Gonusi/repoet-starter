@@ -234,10 +234,11 @@
       }
     }
     /* On paper: the words, the code wrapped instead of cut off, a link's
-       address after it; no menu, footer or ways back. */
+       address after it; no menu, footer or ways back, and no embeds, which
+       print as empty boxes. */
     @media print {
       body { max-width: none; padding: 0; background: #fff; color: #000; font-size: 11pt; }
-      header nav, body > footer, nav.pages, .back { display: none; }
+      header nav, body > footer, nav.pages, .back, iframe { display: none; }
       header { border-bottom-color: #bbb; }
       pre { white-space: pre-wrap; overflow-wrap: anywhere; background: none; border: 1px solid #bbb; }
       .table { overflow: visible; }

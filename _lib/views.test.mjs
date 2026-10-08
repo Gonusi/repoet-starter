@@ -285,9 +285,9 @@ test('the page follows the system into dark, with its own tokens', () => {
   assert.match(read('index.html'), /<meta name="color-scheme" content="light dark">/);
 });
 
-test('on paper: no menu, footer or ways back, and code wraps instead of being cut off', () => {
+test('on paper: no menu, footer, ways back or embeds, and code wraps instead of being cut off', () => {
   const print = /@media print \{([\s\S]*?)\n    \}/.exec(css())[1];
-  assert.match(print, /header nav, body > footer, nav\.pages, \.back \{ display: none; \}/);
+  assert.match(print, /header nav, body > footer, nav\.pages, \.back, iframe \{ display: none; \}/);
   assert.match(print, /pre \{ white-space: pre-wrap;/);
 });
 
