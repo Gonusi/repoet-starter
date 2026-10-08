@@ -8,7 +8,10 @@ import { dirname, join, normalize } from 'node:path';
 import { feedPlugin } from '@11ty/eleventy-plugin-rss';
 import matter from 'gray-matter';
 
-import { resolvePermalinks, shortIdFromPath } from './_lib/permalinks.js';
+import { resolveAddresses } from './_lib/addresses.js';
+import { highlight } from './_lib/highlight.js';
+import { planMenu, readMenu } from './_lib/menu.js';
+import { shortIdFromPath } from './_lib/permalinks.js';
 
 /**
  * A post's slug: the `slug:` line of its frontmatter as written, else the
@@ -75,9 +78,24 @@ export default function (eleventyConfig) {
     },
   });
 
-  // Resolve slug collisions once, up front, so a duplicate slug never
-  // hard-fails the build (docs/content-contract/post-identity.md). Posts read
-  // their final URL slug from this map via posts.11tydata.js.
+  // A tag's address. Tags that differ only in case or punctuation ("Go",
+  // "go") share one page: two pages at /tags/go/ failed the whole build
+  // (2026-10-05). A tag with no Latin letters or digits ("日本語") keeps its
+  // own letters; one with none at all ("🙂") gets no page. The menu compares
+  // its tags the same way.
+  const slugify = eleventyConfig.getFilter('slugify');
+  const tagSlug = (tag) =>
+    slugify(String(tag)) ||
+    String(tag).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
+  eleventyConfig.addFilter('tagSlug', tagSlug);
+  const tagSlugsOf = (tags) => [...new Set([].concat(tags ?? []).map(tagSlug).filter(Boolean))];
+
+  // Every post's address, decided once, up front, so a clash never
+  // hard-fails the build (_lib/addresses.js; docs/content-contract/post-identity.md):
+  // duplicate slugs, two hand-set permalinks, a slug at a page's address, a
+  // menu list at a post's. Posts read their final URL slug from
+  // permalinkMap via posts.11tydata.js; a hand-set permalink that had to move
+  // is changed below (the 'addresses' preprocessor).
   // `draft` is read by the same parser, with the same options, as the build:
   // `draft: true # not yet` is a draft here as on the page. A draft takes no
   // URL, so it never pushes a published post to a suffix. The slug is read as
@@ -91,22 +109,96 @@ export default function (eleventyConfig) {
     }
   };
   const posts = globSync('posts/**/index.md')
-    .map((p) => ({ inputPath: p, text: readFileSync(p, 'utf-8') }))
-    .filter(({ text }) => !isDraft(frontmatter(text).draft));
-  const { urls, warnings } = resolvePermalinks(
-    posts.map(({ inputPath, text }) => ({
+    .sort()
+    .map((p) => {
+      const text = readFileSync(p, 'utf-8');
+      return { inputPath: p, text, data: frontmatter(text) };
+    })
+    .filter(({ data }) => !isDraft(data.draft));
+
+  // The menu (blog.json `menu`, _lib/menu.js): which posts it keeps off the
+  // home list and the feed, and which it shows as a page.
+  const menu = readMenu(blog.menu, tagSlug);
+  for (const w of menu.warnings) console.warn(`[repoet] ${w}`);
+  const plan = planMenu(
+    menu.entries,
+    posts.map(({ inputPath, data }) => ({ inputPath, tags: tagSlugsOf(data.tags) })),
+  );
+  const lists = plan.items.filter((i) => i.path && i.posts.length > 0 && i.path !== `/tags/${i.slug}/`);
+
+  const homeCount = posts.filter((p) => !plan.offHome.has(p.inputPath)).length;
+  const addresses = resolveAddresses({
+    site: [
+      { url: '/', what: 'the home page' },
+      { url: '/feed.xml', what: 'the feed' }, // made by the feed plugin, not a page here
+      ...Array.from({ length: Math.max(0, Math.ceil(homeCount / 50) - 1) }, (_, i) => ({
+        url: `/page/${i + 2}/`,
+        what: `page ${i + 2} of the home list`,
+      })),
+      ...[...new Set(posts.flatMap(({ data }) => tagSlugsOf(data.tags)))].map((slug) => ({
+        url: `/tags/${slug}/`,
+        what: `the tag page /tags/${slug}/`,
+      })),
+      ...ownPages(frontmatter),
+      ...['favicon.svg', ...filesIn('fonts'), ...filesIn('assets')]
+        .filter((f) => existsSync(f))
+        .map((f) => ({ url: `/${f}`, what: f })),
+    ],
+    posts: posts.map(({ inputPath, text, data }) => ({
       inputPath,
       slug: slugOf(inputPath, text),
       shortId: shortIdFromPath(inputPath),
+      ...('permalink' in data ? { permalink: knownPermalink(data.permalink) } : {}),
     })),
-  );
-  for (const w of warnings) console.warn(`[repoet] ${w}`);
+    lists: lists.map((i) => ({ url: i.path, what: `the menu's "${i.label}" list` })),
+  });
+  for (const w of addresses.warnings) console.warn(`[repoet] ${w}`);
   // Key by a normalized suffix so posts.11tydata.js can match Eleventy's inputPath.
   const permalinkMap = {};
-  for (const [inputPath, urlSlug] of urls) {
+  for (const [inputPath, urlSlug] of addresses.slugs) {
     permalinkMap[inputPath.replace(/^\.\//, '')] = urlSlug;
   }
   eleventyConfig.addGlobalData('permalinkMap', permalinkMap);
+  eleventyConfig.addPreprocessor('addresses', 'md', (data) => {
+    const moved = addresses.permalinks.get(String(data.page?.inputPath ?? '').replace(/^\.\//, ''));
+    if (moved) data.permalink = moved;
+  });
+  const listUrl = new Map(lists.map((item, i) => [item, addresses.lists[i]]));
+
+  // The header's menu, in order: a tag with one post links to it, one with
+  // several to its list, one with none is left out.
+  const key = (inputPath) => String(inputPath).replace(/^\.\//, '');
+  eleventyConfig.addCollection('menu', (api) => {
+    const byPath = new Map(api.getFilteredByGlob('posts/**/index.md').map((p) => [key(p.inputPath), p]));
+    return plan.items
+      .filter((i) => i.posts.length > 0)
+      .map((i) => ({
+        label: i.label,
+        url: i.posts.length === 1 ? byPath.get(i.posts[0])?.url : (listUrl.get(i) ?? `/tags/${i.slug}/`),
+      }))
+      .filter((link) => typeof link.url === 'string');
+  });
+  // A menu list at its own address (menu-lists.njk), newest first.
+  eleventyConfig.addCollection('menuLists', (api) => {
+    const newestFirst = api
+      .getFilteredByGlob('posts/**/index.md')
+      .sort((a, b) => (a.data.date < b.data.date ? 1 : -1));
+    return lists
+      .filter((i) => listUrl.get(i))
+      .map((i) => ({
+        label: i.label,
+        url: listUrl.get(i),
+        posts: newestFirst.filter((p) => i.posts.includes(key(p.inputPath))),
+      }));
+  });
+  // The only post of a menu tag kept off the home page is shown as a page:
+  // no date, no tag line (post.njk, layout.njk).
+  eleventyConfig.addGlobalData('menuPages', Object.fromEntries([...plan.pages].map((p) => [`./${p}`, true])));
+  // Where a post's tag links: the menu list's own address when it has one.
+  eleventyConfig.addGlobalData(
+    'tagHomes',
+    Object.fromEntries(lists.filter((i) => listUrl.get(i)).map((i) => [i.slug, listUrl.get(i)])),
+  );
 
   // A draft is not built at all: no page, and it is in no list, feed,
   // sitemap or tag page. Its attachments stay unpublished too (below).
@@ -176,6 +268,12 @@ export default function (eleventyConfig) {
 
   eleventyConfig.addFilter('isoDate', (value) => new Date(value).toISOString());
 
+  // Code blocks are coloured when the site is built (_lib/highlight.js):
+  // readers get coloured HTML and no script. The colours are in
+  // _includes/layout.njk. A block with an unknown language, or none, stays
+  // plain, escaped as Markdown always escaped it.
+  eleventyConfig.amendLibrary('md', (md) => md.set({ highlight }));
+
   // ——— Tier 2 SEO: link unfurls (PROGRESS, 2026-08-30) ———
   // The share image, zero-config: a post's first body image is usually the
   // right one. Frontmatter `image:` overrides; blog.json `socialImage` (a
@@ -202,23 +300,22 @@ export default function (eleventyConfig) {
     ),
   );
 
-  eleventyConfig.addCollection('posts', (api) =>
+  // Every published post, newest first: the sitemap's list.
+  eleventyConfig.addCollection('everyPost', (api) =>
     api
       .getFilteredByGlob('posts/**/index.md')
       .sort((a, b) => (a.data.date < b.data.date ? 1 : -1)),
   );
+  // The home list and the feed: every post but those of a menu tag with
+  // `home: false`. With no menu, every post.
+  eleventyConfig.addCollection('posts', (api) =>
+    api
+      .getFilteredByGlob('posts/**/index.md')
+      .filter((p) => !plan.offHome.has(key(p.inputPath)))
+      .sort((a, b) => (a.data.date < b.data.date ? 1 : -1)),
+  );
 
   // ——— Tier 3 SEO (PROGRESS, 2026-08-30) ———
-  // A tag's address. Tags that differ only in case or punctuation ("Go",
-  // "go") share one page: two pages at /tags/go/ failed the whole build
-  // (2026-10-05). A tag with no Latin letters or digits ("日本語") keeps its
-  // own letters; one with none at all ("🙂") gets no page.
-  const slugify = eleventyConfig.getFilter('slugify');
-  const tagSlug = (tag) =>
-    slugify(String(tag)) ||
-    String(tag).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
-  eleventyConfig.addFilter('tagSlug', tagSlug);
-
   // One entry per tag page: { name, slug, posts }, newest first — drives
   // /tags/<slug>/. The name is the spelling used most (the oldest post's on a
   // tie).
@@ -337,4 +434,57 @@ export function siteFiles() {
       return null;
     },
   };
+}
+
+/**
+ * A hand-set `permalink:` as an address the build can know in advance, or
+ * null: `false` (no page) and one written with template code are left as
+ * they are.
+ */
+function knownPermalink(value) {
+  if (typeof value !== 'string' || !value.trim() || /\{\{|\{%/.test(value)) return null;
+  return value.trim();
+}
+
+/** Every file in a folder and the folders in it, as paths from the blog's root. */
+function filesIn(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => join(entry.parentPath ?? entry.path, entry.name));
+}
+
+/** Folders that hold no pages of the site. */
+const NOT_PAGES = new Set(['node_modules', '_site', '_includes', '_lib', 'posts']);
+const PAGE_TEMPLATE = /\.(md|html|njk|liquid)$/i;
+
+/**
+ * The addresses of the site's pages outside posts/: the template's own
+ * (sitemap, robots, 404) and any page of your own (about.njk → /about/). A
+ * page that paginates (the home list, the tag pages, the menu lists) is
+ * counted by the build itself, and one whose address is written with
+ * template code cannot be known in advance.
+ */
+function ownPages(frontmatter, dir = '.') {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.') || entry.isSymbolicLink()) continue;
+    const path = dir === '.' ? entry.name : `${dir}/${entry.name}`;
+    if (entry.isDirectory()) {
+      if (!NOT_PAGES.has(path)) out.push(...ownPages(frontmatter, path));
+      continue;
+    }
+    if (!PAGE_TEMPLATE.test(entry.name) || path === 'README.md') continue;
+    const data = frontmatter(readFileSync(path, 'utf-8'));
+    if (data.pagination || (/\.md$/i.test(path) && isDraft(data.draft))) continue;
+    if ('permalink' in data) {
+      const url = knownPermalink(data.permalink);
+      if (url) out.push({ url: url.startsWith('/') ? url : `/${url}`, what: path });
+      continue;
+    }
+    const stem = path.replace(PAGE_TEMPLATE, '');
+    const url = stem === 'index' ? '/' : stem.endsWith('/index') ? `/${stem.slice(0, -'index'.length)}` : `/${stem}/`;
+    out.push({ url, what: path });
+  }
+  return out;
 }

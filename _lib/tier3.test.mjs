@@ -185,7 +185,9 @@ test('template syntax in a post is shown exactly as written, in prose and in cod
   const html = read('zzt3-liquid/index.html');
   assert.match(html, /In prose: \{\{ page.title \}\} and \{% if user %\}hello\{% endif %\}\./);
   assert.match(html, /<code>\{\{ x \}\}<\/code> and <code>\{% y %\}<\/code>/);
-  assert.match(html, /TOKEN: \$\{\{ secrets.TOKEN \}\}/);
+  // The code block is coloured at build time: its words are split into
+  // spans, and read without them.
+  assert.match(html.replace(/<[^>]+>/g, ''), /TOKEN: \$\{\{ secrets.TOKEN \}\}/);
 });
 
 test('a draft is nowhere on the site: no page, list, feed, sitemap, tag or photo', () => {

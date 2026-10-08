@@ -46,6 +46,40 @@ stop using the app entirely.
   `posts/hello.md` is still a page.
 - Tags that differ only in case ("Go", "go") share one tag page.
 
+## The menu
+
+Links in the header come from `menu` in `blog.json`, in its order. Each entry
+is a tag; Repoet's Settings edits it, or write it by hand:
+
+```json
+"menu": [
+  { "label": "About", "tag": "about", "home": false },
+  { "label": "TIL",   "tag": "til",   "path": "/til/" }
+]
+```
+
+- A tag with one post links straight to that post. With several, it links to
+  the tag's list: at `path` if you set one, else at `/tags/<tag>/`, which
+  stays either way. A tag with no posts yet is left out of the header.
+- `"home": false` keeps the tag's posts off the home page and out of the
+  feed. They keep their pages and stay in the sitemap. If the tag has one
+  post, it reads as a page: no date and no tag line. That is an About page.
+- Tags compare as tag pages do: `TIL` in the menu is the posts' `til`.
+- With no `menu`, the site has no menu and nothing else changes.
+
+Two things at one address (a menu `path`, a post's slug or hand-set
+`permalink`, a page of the site) never stop the build: the site's own pages
+come first, then hand-set permalinks, then slugs, then menu lists. The later
+one gets another address, and the build log says which (`[repoet] …`).
+
+## Code
+
+Fenced code blocks with a language (```` ```js ````, ```` ```python ````,
+```` ```sh ````) are coloured when the site is built, with
+[Prism](https://prismjs.com/); readers get no script. A block in a language
+Prism does not know, or with none, shows as written. The colours are in
+`_includes/layout.njk` (`--code-…`).
+
 ## Custom post fields
 
 Declare recurring fields in `blog.json` and the Repoet editor renders them at
@@ -117,4 +151,5 @@ break until it does.
 
 See `NOTICE`: the theme is adapted from no-style-please (MIT), and the fonts
 are under the SIL Open Font License, whose text is in `fonts/OFL.txt` and is
-published with the fonts.
+published with the fonts. Prism (MIT) colours code while the site is built;
+none of its code is published with the site.

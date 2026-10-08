@@ -23,17 +23,19 @@
       `socialImage` (a root path like "/assets/social.png") says otherwise —
       and when there is no image, no og:image: a text-only preview is honest,
       a broken image URL is not. -#}
-  <meta property="og:type" content="{{ ogType or 'website' }}">
+  {#- A menu tag's only post, kept off the home page, is a page, not an article. -#}
+  {%- set asPage = menuPages and menuPages[page.inputPath] -%}
+  <meta property="og:type" content="{{ 'website' if asPage else (ogType or 'website') }}">
   <meta property="og:title" content="{{ title or blog.title }}">
   <meta property="og:description" content="{{ description or blog.description }}">
   <meta property="og:site_name" content="{{ blog.title }}">
   {%- if site.url %}
   <meta property="og:url" content="{{ site.url }}{{ page.url }}">
   {%- endif %}
-  {%- if ogType == 'article' and date %}
+  {%- if ogType == 'article' and date and not asPage %}
   <meta property="article:published_time" content="{{ date | isoDate }}">
   {%- endif %}
-  {%- if ogType == 'article' and updated %}
+  {%- if ogType == 'article' and updated and not asPage %}
   <meta property="article:modified_time" content="{{ updated | isoDate }}">
   {%- endif %}
   {%- set shareImage = (image or (content | firstImage) or blog.socialImage) | absUrl(page.url) %}
@@ -85,6 +87,24 @@
     blockquote { border-left: 2px solid var(--rule); margin-left: 0; padding-left: 1rem; color: var(--ink-soft); font-style: italic; }
     hr { border: none; border-top: 1px solid var(--rule); }
     .empty { font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft); }
+    /* The menu (blog.json "menu"): beside the title, under it on a phone. */
+    header nav { display: flex; flex-wrap: wrap; gap: 0 1.1rem; margin-left: auto; }
+    header nav a { font-family: var(--mono); font-style: normal; font-weight: 400; font-size: 0.8rem;
+                   padding: 0.3rem 0; color: var(--ink); }
+    header nav a:hover { color: var(--green-deep); }
+    header nav a[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 1px;
+                                        text-underline-offset: 4px; text-decoration-color: var(--green); }
+    /* Code colours, given when the site is built: no script reaches readers.
+       Calm on purpose: comments recede, keywords take the green, strings and
+       numbers a warm ink; everything else stays ink. Each is at least 4.5:1
+       on the code block's ground, #ecebe5 (WCAG AA). */
+    :root { --code-comment: #646860; --code-keyword: #245a40; --code-string: #7c4f1d; --code-number: #8f3527; }
+    .token.comment, .token.prolog, .token.doctype, .token.cdata { color: var(--code-comment); font-style: italic; }
+    .token.keyword, .token.atrule, .token.important, .token.tag, .token.selector, .token.builtin,
+    .token.rule, .token.inserted { color: var(--code-keyword); }
+    .token.string, .token.char, .token.attr-value, .token.regex, .token.template-string, .token.url { color: var(--code-string); }
+    .token.number, .token.boolean, .token.constant, .token.symbol, .token.entity, .token.deleted { color: var(--code-number); }
+    .token.tag .token.punctuation, .token.attr-value .token.punctuation { color: inherit; }
     :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   </style>
 </head>
@@ -93,6 +113,13 @@
     <a href="{{ '/' | url }}">{{ blog.title }}</a>
     {%- if blog.showDescription and blog.description %}
     <span class="tagline">{{ blog.description }}</span>
+    {%- endif %}
+    {%- if collections.menu and collections.menu.length %}
+    <nav aria-label="Menu">
+      {%- for link in collections.menu %}
+      <a href="{{ link.url | url }}"{% if link.url == page.url %} aria-current="page"{% endif %}>{{ link.label }}</a>
+      {%- endfor %}
+    </nav>
     {%- endif %}
   </header>
   <main>{{ content | safe }}</main>

@@ -17,8 +17,23 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 export const MANIFEST = '.repoet-template.json';
 
-/** Files that only work together: a config that needs a new dependency needs the package files that bring it. */
-export const GROUPS = [['package.json', 'package-lock.json', 'eleventy.config.js']];
+/**
+ * Files that only work together: a config that needs a new dependency needs
+ * the package files that bring it, and the code it imports (_lib/*.js) and
+ * the page that reads its collections (menu-lists.njk) need that config.
+ */
+export const GROUPS = [
+  [
+    'package.json',
+    'package-lock.json',
+    'eleventy.config.js',
+    '_lib/addresses.js',
+    '_lib/highlight.js',
+    '_lib/menu.js',
+    '_lib/permalinks.js',
+    'menu-lists.njk',
+  ],
+];
 
 /** A path the manifest never lists: the person's settings, posts and favicon, and the manifest itself. */
 export function isTemplateFile(path) {

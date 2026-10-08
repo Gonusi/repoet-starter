@@ -61,5 +61,10 @@ test('a path removed long ago, back in other case, is refused the same way', () 
 
 test('names the files that only work together', () => {
   assert.deepEqual(buildManifest({ version: 'v', files: {}, previous: null }).groups, GROUPS);
-  assert.deepEqual(GROUPS, [['package.json', 'package-lock.json', 'eleventy.config.js']]);
+  assert.deepEqual(GROUPS[0].slice(0, 3), ['package.json', 'package-lock.json', 'eleventy.config.js']);
+  // The config's own code and the page that needs its collections go with it:
+  // a kept config beside a new menu-lists.njk would fail the build.
+  for (const path of ['_lib/addresses.js', '_lib/highlight.js', '_lib/menu.js', '_lib/permalinks.js', 'menu-lists.njk']) {
+    assert.ok(GROUPS[0].includes(path), path);
+  }
 });

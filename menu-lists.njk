@@ -1,0 +1,24 @@
+---
+layout: layout.njk
+pagination:
+  data: collections.menuLists
+  size: 1
+  alias: list
+permalink: "{{ list.url }}"
+eleventyExcludeFromCollections: true
+eleventyComputed:
+  title: "{{ list.label }}"
+---
+{#- A menu tag's list at its own address: blog.json "menu", "path". -#}
+<h1>{{ list.label }}</h1>
+<ul class="posts">
+  {%- for post in list.posts %}
+  <li>
+    <a href="{{ post.url | url }}">
+      {% if post.data.title %}<strong>{{ post.data.title }}</strong>{% else %}{{ post.content | striptags | truncate(120) }}{% endif %}
+    </a>
+    <div class="meta">{{ post.data.date | readableDate }}</div>
+  </li>
+  {%- endfor %}
+</ul>
+<p class="meta"><a href="{{ '/' | url }}">‹ All posts</a></p>

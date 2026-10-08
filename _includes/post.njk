@@ -2,17 +2,22 @@
 layout: layout.njk
 ogType: article
 ---
+{#- The only post of a menu tag kept off the home page reads as a page:
+    no date, no tag line (blog.json "menu"). -#}
+{%- set asPage = menuPages and menuPages[page.inputPath] -%}
 <article>
   {% if title %}<h1>{{ title }}</h1>{% endif %}
-  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% if tags %} · {% for t in tags %}{% set tagPage = t | tagSlug %}{% if tagPage %}<a href="{{ ("/tags/" + tagPage + "/") | url }}">{{ t }}</a>{% else %}{{ t }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}{% if blog.author %} · {{ blog.author }}{% endif %}</p>
+  {%- if not asPage %}
+  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% if tags %} · {% for t in tags %}{% set tagPage = t | tagSlug %}{% if tagPage %}<a href="{{ ((tagHomes and tagHomes[tagPage]) or ("/tags/" + tagPage + "/")) | url }}">{{ t }}</a>{% else %}{{ t }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}{% if blog.author %} · {{ blog.author }}{% endif %}</p>
+  {%- endif %}
   {{ content | safe }}
 </article>
 {# Machine-readable twin of the article, for search results. #}
 <script type="application/ld+json">{{ {
   '@context': 'https://schema.org',
-  '@type': 'BlogPosting',
+  '@type': 'WebPage' if asPage else 'BlogPosting',
   headline: title or (content | striptags | truncate(80, true, '…')),
-  datePublished: date | isoDate,
+  datePublished: undefined if asPage else (date | isoDate),
   description: description or blog.description,
   url: site.url + page.url if site.url else page.url,
   author: { '@type': 'Person', name: blog.author or blog.title }
