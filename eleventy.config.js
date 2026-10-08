@@ -166,17 +166,22 @@ export default function (eleventyConfig) {
   const listUrl = new Map(lists.map((item, i) => [item, addresses.lists[i]]));
 
   // The header's menu, in order: a tag with one post links to it, one with
-  // several to its list, one with none is left out.
+  // several to its list, one with none is left out. While the menu has a
+  // list, "All" comes first and links home: a reader in /til/ otherwise had
+  // only the blog's name to get back to every post (owner, 2026-10-08). Pages
+  // alone (About) leave the header as it was.
   const key = (inputPath) => String(inputPath).replace(/^\.\//, '');
   eleventyConfig.addCollection('menu', (api) => {
     const byPath = new Map(api.getFilteredByGlob('posts/**/index.md').map((p) => [key(p.inputPath), p]));
-    return plan.items
+    const links = plan.items
       .filter((i) => i.posts.length > 0)
       .map((i) => ({
         label: i.label,
         url: i.posts.length === 1 ? byPath.get(i.posts[0])?.url : (listUrl.get(i) ?? `/tags/${i.slug}/`),
+        list: i.posts.length > 1,
       }))
       .filter((link) => typeof link.url === 'string');
+    return links.some((link) => link.list) ? [{ label: 'All', url: '/', list: true }, ...links] : links;
   });
   // A menu list at its own address (menu-lists.njk), newest first.
   eleventyConfig.addCollection('menuLists', (api) => {

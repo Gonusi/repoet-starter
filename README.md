@@ -65,6 +65,8 @@ is a tag; Repoet's Settings edits it, or write it by hand:
   feed. They keep their pages and stay in the sitemap. If the tag has one
   post, it reads as a page: no date and no tag line. That is an About page.
 - Tags compare as tag pages do: `TIL` in the menu is the posts' `til`.
+- While the menu has a list (a tag with several posts), the header starts
+  with "All", a link to the home page. A menu of pages alone has no "All".
 - With no `menu`, the site has no menu and nothing else changes.
 
 Two things at one address (a menu `path`, a post's slug or hand-set

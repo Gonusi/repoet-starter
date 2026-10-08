@@ -10,6 +10,7 @@ import { testSite } from './testSite.mjs';
 const SITE = 'https://example-owner.github.io/blog';
 let site;
 let plain;
+let pages;
 
 function post(s, dir, fm, body = 'Body.') {
   s.write(`${dir}/index.md`, ['---', ...fm, '---', body, ''].join('\n'));
@@ -92,6 +93,15 @@ before(async () => {
   ]);
   await site.build({ SITE_URL: SITE, PATH_PREFIX: '/blog/' });
 
+  pages = testSite();
+  pages.write('blog.json', JSON.stringify({
+    title: 'Pages blog', menu: [{ label: 'About', tag: 'about', home: false }, { label: 'Uses', tag: 'uses' }],
+  }));
+  post(pages, 'posts/2026/08/aaaa0001-about-me', [
+    'id: g-about', 'title: About me', 'slug: about', 'date: 2026-08-01T10:00:00Z', 'tags: [about]',
+  ]);
+  await pages.build({ SITE_URL: SITE, PATH_PREFIX: '/' });
+
   plain = testSite();
   post(plain, 'posts/2026/08/aaaa0001-about-me', [
     'id: p-about', 'title: About me', 'slug: about', 'date: 2026-08-01T10:00:00Z', 'tags: [about]',
@@ -102,6 +112,7 @@ before(async () => {
 after(() => {
   site?.dispose();
   plain?.dispose();
+  pages?.dispose();
 });
 
 const header = (html) => /<header>[\s\S]*?<\/header>/.exec(html)[0];
@@ -111,8 +122,20 @@ test('the header shows the menu in its order; a tag with no posts is left out', 
   const nav = links(site.read('index.html'));
   assert.deepEqual(
     nav.map((a) => />([^<]*)</.exec(a)[1]),
-    ['About', 'TIL', 'Books', 'Notes', 'Taken'],
+    ['All', 'About', 'TIL', 'Books', 'Notes', 'Taken'],
   );
+});
+
+test('while the menu has a list, "All" comes first, links home, and is current there', () => {
+  const home = header(site.read('index.html'));
+  assert.match(home, /<a href="\/blog\/" aria-current="page">All<\/a>/);
+  assert.match(header(site.read('til/index.html')), /<a href="\/blog\/">All<\/a>/, 'not current on a list');
+  assert.match(header(site.read('about/index.html')), /<a href="\/blog\/">All<\/a>/, 'not current on a page');
+});
+
+test('a menu of pages alone has no "All": the header is as it was, plus its pages', () => {
+  const nav = links(pages.read('index.html'));
+  assert.deepEqual(nav.map((a) => />([^<]*)</.exec(a)[1]), ['About']);
 });
 
 test('a tag with one post links straight to it; with several, to its list', () => {
@@ -125,7 +148,7 @@ test('a tag with one post links straight to it; with several, to its list', () =
 
 test('the page a menu link opens says so', () => {
   assert.match(header(site.read('about/index.html')), /<a href="\/blog\/about\/" aria-current="page">About<\/a>/);
-  assert.doesNotMatch(header(site.read('index.html')), /aria-current/);
+  assert.equal(header(site.read('index.html')).match(/aria-current/g).length, 1, 'on home, only All');
 });
 
 test('a menu tag\'s only post, kept off the home page, reads as a page: no date, no tags', () => {
