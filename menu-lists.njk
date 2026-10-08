@@ -9,16 +9,10 @@ eleventyExcludeFromCollections: true
 eleventyComputed:
   title: "{{ list.label }}"
 ---
-{#- A menu tag's list at its own address: blog.json "menu", "path". -#}
+{#- A menu tag's list at its own address: blog.json "menu", "path". The menu
+    above starts with the way back to every post, so none is repeated here. -#}
+{%- from "post-row.njk" import postRow %}
 <h1>{{ list.label }}</h1>
 <ul class="posts">
-  {%- for post in list.posts %}
-  <li>
-    <a href="{{ post.url | url }}">
-      {% if post.data.title %}<strong>{{ post.data.title }}</strong>{% else %}{{ post.content | striptags | truncate(120) }}{% endif %}
-    </a>
-    <div class="meta">{{ post.data.date | readableDate }}</div>
-  </li>
-  {%- endfor %}
+  {%- for post in list.posts %}{{ postRow(post) }}{% endfor %}
 </ul>
-<p class="meta"><a href="{{ '/' | url }}">‹ All posts</a></p>

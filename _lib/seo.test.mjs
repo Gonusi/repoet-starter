@@ -61,10 +61,9 @@ test('a post uses its own description; the home page uses the blog description',
   assert.match(indexHtml, /<meta name="description" content="Small notes about running">/);
 });
 
-test('a post without its own description falls back to the blog description', () => {
-  // the probe post HAS one — assert the fallback wiring exists in the layout
-  const layout = readFileSync('_includes/layout.njk', 'utf-8');
-  assert.match(layout, /description or blog\.description/);
+test('a post without its own description is described by its own words, never the blog’s tagline', () => {
+  // views critique 2026-10-08: every such post previewed with the tagline.
+  assert.match(imagePostHtml, /<meta name="description" content="Body.">/);
 });
 
 test('every page declares its canonical URL', () => {

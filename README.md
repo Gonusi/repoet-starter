@@ -22,11 +22,15 @@ stop using the app entirely.
   (this README and `package.json` included, say by adding a dependency), and a
   file of your own at a path the template starts using, is kept as you have it:
   Repoet names it and leaves merging the newer version to you, by hand. The
-  files you left alone are still updated. `package.json`,
-  `package-lock.json` and `eleventy.config.js` go together: if you changed
-  one, none of them is updated. A file the template no longer ships is
-  deleted by an update only if you never changed it. Your posts, `blog.json`
-  and `favicon.svg` are never part of a template update.
+  files you left alone are still updated. The files the build reads go
+  together: `package.json`, `package-lock.json`, `eleventy.config.js`,
+  `_lib/*.js`, every `.njk` page and layout, `posts/posts.11tydata.js` and
+  the fonts. If you changed one, none of them is updated, so a new layout
+  never meets an old config. A file the template no longer ships is deleted
+  by an update only if you never changed it. Your posts, `blog.json` and
+  `favicon.svg` are never part of a template update;
+  `posts/posts.11tydata.js`, the posts' build settings, is a template file
+  that sits beside them.
 - **Template maintainers**: after any commit that changes a template file, run
   `node _lib/manifest.mjs` and commit `.repoet-template.json` on its own. It
   lists renamed or deleted files under `removed`.
@@ -44,7 +48,25 @@ stop using the app entirely.
   published. Other files under `posts/`, outside a post's folder, are
   published at their own path, and a single-file post such as
   `posts/hello.md` is still a page.
-- Tags that differ only in case ("Go", "go") share one tag page.
+- Tags that differ only in case ("Go", "go") share one tag page, and a post
+  lists them once. `/tags/` lists every tag, unless a page of yours is there.
+- Quotes and apostrophes print typographic (`"it's"` reads “it’s”), in the
+  blog's `language` where it has its own („…“ in German and Lithuanian).
+  `--`, `(c)` and `...` stay as you wrote them, and code is never touched.
+- A bare `https://` address is a link. `README.md` and `www.example.org`
+  stay words.
+- An image on a line of its own is a figure, and its title is the caption
+  under it: `![A fern](fern.jpg "On the window")`. Photos keep their shape
+  within the column and the screen, and load as the reader reaches them.
+- A table scrolls inside the column when it is wider; an embedded video
+  keeps its proportions on a phone.
+- A post without a title is named by its opening words in the browser's
+  tab, on a share card and in the feed; a post without a `description` is
+  described by its first sentence.
+- Dates are in the blog's `language`: "Jan 29, 2026" in English.
+- The feed (`/feed.xml`) holds the newest 20 posts of the home page.
+- The site follows the reader's system into dark mode, and prints without
+  its menu and footer, with code wrapped.
 
 ## The menu
 
@@ -66,7 +88,12 @@ is a tag; Repoet's Settings edits it, or write it by hand:
   post, it reads as a page: no date and no tag line. That is an About page.
 - Tags compare as tag pages do: `TIL` in the menu is the posts' `til`.
 - While the menu has a list (a tag with several posts), the header starts
-  with "All", a link to the home page. A menu of pages alone has no "All".
+  with "All", a link to the home page; "Home" when a list is kept off the
+  home page, since home then does not hold every post. A menu of pages
+  alone has neither.
+- A post in a list belongs to it: on the post, its menu link is underlined
+  and its tag reads as the menu's label ("Book Reviews", not "books"),
+  linking to the list. The home page names the list under the post's date.
 - With no `menu`, the site has no menu and nothing else changes.
 
 Two things at one address (a menu `path`, a post's slug or hand-set
@@ -96,7 +123,9 @@ Fenced code blocks with a language (```` ```js ````, ```` ```python ````,
 ```` ```sh ````) are coloured when the site is built, with
 [Prism](https://prismjs.com/); readers get no script. A block in a language
 Prism does not know, or with none, shows as written. The colours are in
-`_includes/layout.njk` (`--code-…`).
+`_includes/layout.njk` (`--code-…`), for the light and the dark theme. A
+long line scrolls sideways, and the block's right edge is shaded while
+there is more.
 
 ## Custom post fields
 

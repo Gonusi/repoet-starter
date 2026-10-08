@@ -93,3 +93,59 @@ export function planMenu(entries, posts) {
   const pages = new Set(items.filter((i) => !i.home && i.posts.length === 1).map((i) => i.posts[0]));
   return { items, offHome, pages };
 }
+
+/**
+ * The menu's sections: its entries that list several posts, each with the
+ * address of its list (`listUrl`). A post carrying a section's tag belongs
+ * to it: the section's menu item is marked on the post, its tag line says
+ * the section's label, and the home list names it under the post's date.
+ *
+ * @param {ReturnType<typeof planMenu>['items']} items
+ * @param {(item: ReturnType<typeof planMenu>['items'][number]) => string} listUrl
+ * @returns {{ slug: string, label: string, url: string, home: boolean }[]}
+ */
+export function sectionsOf(items, listUrl) {
+  return items
+    .filter((i) => i.posts.length > 1)
+    .map((i) => ({ slug: i.slug, label: i.label, url: listUrl(i), home: i.home }));
+}
+
+/** The section of a post with these tag slugs: the first, in menu order, whose tag it carries. */
+export function sectionOf(sections, slugs) {
+  return sections.find((s) => slugs.includes(s.slug)) ?? null;
+}
+
+/**
+ * The first menu link's words: "All" while every list is on the home page,
+ * "Home" once a list is kept off it (`home: false`), since the home page then
+ * no longer holds every post.
+ */
+export function homeLabel(sections) {
+  return sections.some((s) => !s.home) ? 'Home' : 'All';
+}
+
+/**
+ * A post's tags as its tag line shows them: once per tag page ("Go" and "go"
+ * are one), in the post's order. A section's tag reads as the menu does
+ * ("Book Reviews", not "books") and links to its list; any other links to
+ * its tag page, or to its own list's address (`homes`). A tag with no page
+ * (no letters or digits) is words without a link.
+ *
+ * @returns {{ label: string, url: string | null }[]}
+ */
+export function tagLine(tags, { tagSlug, sections = [], homes = {} }) {
+  const seen = new Set();
+  const out = [];
+  for (const tag of [].concat(tags ?? [])) {
+    const word = String(tag);
+    const slug = tagSlug(word);
+    if (slug) {
+      if (seen.has(slug)) continue;
+      seen.add(slug);
+    }
+    const section = slug ? sections.find((s) => s.slug === slug) : null;
+    if (section) out.push({ label: section.label, url: section.url });
+    else out.push({ label: word, url: slug ? (Object.hasOwn(homes, slug) ? homes[slug] : `/tags/${slug}/`) : null });
+  }
+  return out;
+}

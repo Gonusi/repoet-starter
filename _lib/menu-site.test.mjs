@@ -122,7 +122,7 @@ test('the header shows the menu in its order; a tag with no posts is left out', 
   const nav = links(site.read('index.html'));
   assert.deepEqual(
     nav.map((a) => />([^<]*)</.exec(a)[1]),
-    ['All', 'About', 'TIL', 'Books', 'Notes', 'Taken'],
+    ['Home', 'About', 'TIL', 'Books', 'Notes', 'Taken'],
   );
 });
 
@@ -136,11 +136,13 @@ test('a header with a menu says so, for its layout; one without is as it was', (
   assert.match(plain.read('index.html'), /<header>/);
 });
 
-test('while the menu has a list, "All" comes first, links home, and is current there', () => {
+// "All" while every list is on the home page (views.test.mjs); this menu
+// keeps Notes off it, so home no longer holds every post: "Home".
+test('while the menu has a list, the way home comes first and is current there; "Home" once a list is kept off it', () => {
   const home = header(site.read('index.html'));
-  assert.match(home, /<a href="\/blog\/" aria-current="page">All<\/a>/);
-  assert.match(header(site.read('til/index.html')), /<a href="\/blog\/">All<\/a>/, 'not current on a list');
-  assert.match(header(site.read('about/index.html')), /<a href="\/blog\/">All<\/a>/, 'not current on a page');
+  assert.match(home, /<a href="\/blog\/" aria-current="page">Home<\/a>/);
+  assert.match(header(site.read('til/index.html')), /<a href="\/blog\/">Home<\/a>/, 'not current on a list');
+  assert.match(header(site.read('about/index.html')), /<a href="\/blog\/">Home<\/a>/, 'not current on a page');
 });
 
 test('a menu of pages alone has no "All": the header is as it was, plus its pages', () => {
@@ -158,7 +160,7 @@ test('a tag with one post links straight to it; with several, to its list', () =
 
 test('the page a menu link opens says so', () => {
   assert.match(header(site.read('about/index.html')), /<a href="\/blog\/about\/" aria-current="page">About<\/a>/);
-  assert.equal(header(site.read('index.html')).match(/aria-current/g).length, 1, 'on home, only All');
+  assert.equal(header(site.read('index.html')).match(/aria-current/g).length, 1, 'on home, only Home');
 });
 
 test('a menu tag\'s only post, kept off the home page, reads as a page: no date, no tags', () => {
@@ -200,11 +202,11 @@ test('home: false keeps a tag\'s posts off the home list and the feed, not the s
 test('a path builds the tag\'s list there, and the tag page stays', () => {
   const list = site.read('til/index.html');
   assert.match(list, /<h1>TIL<\/h1>/);
-  assert.match(list, /<title>TIL<\/title>/);
+  assert.match(list, /<title>TIL · Menu blog<\/title>/);
   assert.match(list, /TIL two[\s\S]*TIL one/, 'newest first');
   assert.ok(site.has('tags/til/index.html'), 'old links to the tag page keep working');
   assert.ok(site.has('books/index.html'), '"books" is the address /books/');
-  assert.match(site.read('til-one/index.html'), /href="\/blog\/til\/">til<\/a>/, 'a post\'s tag links to the list\'s address');
+  assert.match(site.read('til-one/index.html'), /href="\/blog\/til\/">TIL<\/a>/, 'a post\'s tag links to the list\'s address, in the menu\'s words');
 });
 
 test('a clash never fails the build: the later claimant gets another address', () => {
@@ -239,7 +241,7 @@ test('code is coloured when the site is built, with no script for readers', () =
 test('with no menu, the header has no menu and every post is on the home page and in the feed', () => {
   const home = plain.read('index.html');
   assert.doesNotMatch(home, /<nav/);
-  assert.match(header(home), /^<header>\s*<a href="\/">My blog<\/a>\s*<\/header>$/);
+  assert.match(header(home), /^<header>\s*<h1 class="wordmark"><a href="\/">My blog<\/a><\/h1>\s*<\/header>$/);
   assert.match(home, /<strong>About me</);
   assert.match(plain.read('feed.xml'), /<title>About me</);
   assert.match(plain.read('about/index.html'), /<p class="meta"><time/);

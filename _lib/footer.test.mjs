@@ -88,11 +88,17 @@ test('only spaces is no footer; a value that is not text shows the default and s
   assert.match(odd.warning, /"footer" is a number, not one line of text, so the default footer is shown/);
 });
 
-// WCAG AA: words are at least 4.5:1 on their ground. ink-soft (dates, the
-// tagline, quotes, the footer) was 4.47:1 on the paper until 2026-10-08.
-test('the grey of dates, the tagline and the footer, and the code colours, are at least 4.5:1 on their ground', () => {
+// WCAG AA: words are at least 4.5:1 on their ground, in the light theme and
+// the dark one (2026-10-08). ink-soft (dates, the tagline, quotes, the
+// footer) was 4.47:1 on the paper until 2026-10-08.
+test('every colour of words is at least 4.5:1 on its ground, light and dark: text, dates, links, code', () => {
   const layout = readFileSync(new URL('../_includes/layout.njk', import.meta.url), 'utf-8');
-  const token = (name) => new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, 'i').exec(layout)[1];
+  const darkStart = layout.indexOf('@media screen and (prefers-color-scheme: dark)');
+  assert.ok(darkStart > 0, 'the layout has a dark theme');
+  const darkBlock = layout.slice(darkStart, layout.indexOf('@media print', darkStart));
+  const tokens = (css) => Object.fromEntries([...css.matchAll(/--([a-z-]+):\s*(#[0-9a-f]{6})/gi)].map(([, n, v]) => [n, v]));
+  const light = tokens(layout.slice(0, darkStart));
+  const dark = { ...light, ...tokens(darkBlock) };
   const luminance = (hex) => {
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
       .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
@@ -102,12 +108,13 @@ test('the grey of dates, the tagline and the footer, and the code colours, are a
     const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
     return (hi + 0.05) / (lo + 0.05);
   };
-  const paper = token('paper');
-  for (const name of ['ink', 'ink-soft', 'green-deep']) {
-    assert.ok(ratio(token(name), paper) >= 4.5, `--${name} on the paper is ${ratio(token(name), paper).toFixed(2)}:1`);
+  for (const [theme, t] of [['light', light], ['dark', dark]]) {
+    for (const name of ['ink', 'ink-soft', 'green', 'green-deep']) {
+      assert.ok(ratio(t[name], t.paper) >= 4.5, `${theme}: --${name} on the paper is ${ratio(t[name], t.paper).toFixed(2)}:1`);
+    }
+    for (const name of ['ink', 'green', 'green-deep', 'code-comment', 'code-keyword', 'code-string', 'code-number']) {
+      assert.ok(ratio(t[name], t['code-ground']) >= 4.5, `${theme}: --${name} on code is ${ratio(t[name], t['code-ground']).toFixed(2)}:1`);
+    }
   }
-  const codeGround = /pre \{ background: (#[0-9a-f]{6})/i.exec(layout)[1];
-  for (const name of ['code-comment', 'code-keyword', 'code-string', 'code-number']) {
-    assert.ok(ratio(token(name), codeGround) >= 4.5, `--${name} on code is ${ratio(token(name), codeGround).toFixed(2)}:1`);
-  }
+  assert.notEqual(dark.paper, light.paper, 'the dark theme has its own ground');
 });

@@ -1,0 +1,22 @@
+---
+layout: layout.njk
+pagination:
+  data: tagsIndex
+  size: 1
+  alias: index
+permalink: "{{ index.url }}"
+eleventyExcludeFromCollections: true
+title: Tags
+---
+{#- Every tag, at /tags/, so an address trimmed back from a tag page lands
+    somewhere. Built only while nothing else is at /tags/ (eleventy.config.js). -#}
+<h1>Tags</h1>
+{%- if collections.tagList.length %}
+<ul class="tags">
+  {%- for t in collections.tagList %}
+  <li><a href="{{ ('/tags/' + t.slug + '/') | url }}">{{ t.name }}</a><span class="meta">{{ t.posts.length }}</span></li>
+  {%- endfor %}
+</ul>
+{%- else %}
+<p class="empty">No tags yet.</p>
+{%- endif %}

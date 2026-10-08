@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { menuPath, planMenu, readMenu } from './menu.js';
+import { homeLabel, menuPath, planMenu, readMenu, sectionOf, sectionsOf, tagLine } from './menu.js';
 import { addressBook, outputOf, resolveAddresses, withSuffix } from './addresses.js';
 import { resolvePermalinks } from './permalinks.js';
 
@@ -166,4 +166,65 @@ test('a menu list whose address is taken stays at its tag page', () => {
   });
   assert.deepEqual(lists, [null, '/books/']);
   assert.match(warnings.join('\n'), /the menu's "TIL" list asks for \/til\/, which is posts\/2026\/08\/aaaa0001-til\/index.md's address/);
+});
+
+// The section a post belongs to (views critique 2026-10-08: H1, L3, T2).
+const items = planMenu(
+  readMenu(
+    [
+      { label: 'About', tag: 'about', home: false },
+      { label: 'Book Reviews', tag: 'books', path: '/books/' },
+      { label: 'TIL', tag: 'til' },
+    ],
+    slug,
+  ).entries,
+  [
+    { inputPath: 'a', tags: ['about'] },
+    { inputPath: 'b1', tags: ['books', 'til'] },
+    { inputPath: 'b2', tags: ['books'] },
+    { inputPath: 't1', tags: ['til'] },
+  ],
+).items;
+const sections = sectionsOf(items, (i) => i.path ?? `/tags/${i.slug}/`);
+
+test('a section is a menu entry that lists several posts, at its list’s address; a page is not one', () => {
+  assert.deepEqual(sections, [
+    { slug: 'books', label: 'Book Reviews', url: '/books/', home: true },
+    { slug: 'til', label: 'TIL', url: '/tags/til/', home: true },
+  ]);
+});
+
+test('a post belongs to the first section, in menu order, whose tag it carries', () => {
+  assert.equal(sectionOf(sections, ['til', 'books']).label, 'Book Reviews');
+  assert.equal(sectionOf(sections, ['til']).label, 'TIL');
+  assert.equal(sectionOf(sections, ['about', 'go']), null);
+});
+
+test('the way home reads "All" while every list is on the home page, "Home" once one is kept off it', () => {
+  assert.equal(homeLabel(sections), 'All');
+  assert.equal(homeLabel([...sections, { slug: 'notes', label: 'Notes', url: '/tags/notes/', home: false }]), 'Home');
+});
+
+test('a tag line names a section’s tag as the menu does, links each tag once, and keeps the post’s order', () => {
+  const line = tagLine(['British', 'books', 'Books', 'go', '🙂'], { tagSlug: slug, sections, homes: { go: '/golang/' } });
+  assert.deepEqual(line, [
+    { label: 'British', url: '/tags/british/' },
+    { label: 'Book Reviews', url: '/books/' },
+    { label: 'go', url: '/golang/' },
+    { label: '🙂', url: null },
+  ]);
+  assert.deepEqual(tagLine(undefined, { tagSlug: slug }), []);
+  assert.deepEqual(tagLine('solo', { tagSlug: slug }), [{ label: 'solo', url: '/tags/solo/' }]);
+});
+
+test('a page the site adds only where nothing is (the list of tags) never moves a post or a list', () => {
+  const free = resolveAddresses({ site: [], posts: [], extras: [{ url: '/tags/', what: 'the list of tags' }] });
+  assert.deepEqual(free.extras, ['/tags/']);
+  const post = { inputPath: 'posts/2026/10/aaaa1111-tags/index.md', slug: 'tags', shortId: 'aaaa1111' };
+  const taken = resolveAddresses({ site: [], posts: [post], extras: [{ url: '/tags/', what: 'the list of tags' }] });
+  assert.deepEqual(taken.extras, [null]);
+  assert.equal(taken.slugs.get(post.inputPath), 'tags', 'the post keeps /tags/');
+  assert.deepEqual(taken.warnings, []);
+  const list = resolveAddresses({ site: [], posts: [], lists: [{ url: '/tags/', what: 'a list' }], extras: [{ url: '/tags/', what: 'x' }] });
+  assert.deepEqual([list.lists, list.extras], [['/tags/'], [null]]);
 });

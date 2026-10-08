@@ -1,29 +1,31 @@
 ---
 layout: layout.njk
+homeList: true
 pagination:
   data: collections.posts
   size: 50
   alias: pagePosts
   generatePageOnEmptyData: true
 permalink: "{% if pagination.pageNumber == 0 %}/{% else %}/page/{{ pagination.pageNumber + 1 }}/{% endif %}"
+eleventyComputed:
+  title: "{% if pagination.pageNumber > 0 %}Page {{ pagination.pageNumber + 1 }}{% endif %}"
 ---
+{%- from "post-row.njk" import postRow %}
 {%- if collections.posts | length == 0 %}
 <p class="empty">No posts yet.</p>
 {%- endif %}
 <ul class="posts">
-  {%- for post in pagePosts %}
-  <li>
-    <a href="{{ post.url | url }}">
-      {% if post.data.title %}<strong>{{ post.data.title }}</strong>{% else %}{{ post.content | striptags | truncate(120) }}{% endif %}
-    </a>
-    <div class="meta">{{ post.data.date | readableDate }}</div>
-  </li>
-  {%- endfor %}
+  {%- for post in pagePosts %}{{ postRow(post, true) }}{% endfor %}
 </ul>
 {%- if pagination.href.previous or pagination.href.next %}
-<nav class="pages">
-  {%- if pagination.href.previous %}<a href="{{ pagination.href.previous | url }}">‹ Newer</a>{% endif %}
-  {%- if pagination.href.next %}<a href="{{ pagination.href.next | url }}">Older ›</a>{% endif %}
+<nav class="pages" aria-label="Pages">
+  {%- if pagination.href.previous %}
+  <a href="{{ pagination.href.previous | url }}" rel="prev">‹ Newer posts</a>
+  {%- endif %}
+  <span>Page {{ pagination.pageNumber + 1 }} of {{ pagination.pages.length }}</span>
+  {%- if pagination.href.next %}
+  <a class="older" href="{{ pagination.href.next | url }}" rel="next">Older posts ›</a>
+  {%- endif %}
 </nav>
 {%- endif %}
 {# The site itself, for search: one WebSite, one Person. #}

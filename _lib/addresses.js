@@ -73,17 +73,21 @@ const byPath = (a, b) => (a.inputPath < b.inputPath ? -1 : a.inputPath > b.input
  *   site: { url: string, what: string }[],
  *   posts: { inputPath: string, slug: string, shortId: string, permalink?: string | null }[],
  *   lists?: { url: string, what: string }[],
+ *   extras?: { url: string, what: string }[],
  * }} input
  *   `site`: the site's own pages and files. `posts`: the published posts;
  *   `permalink` is a hand-set address, or null for a hand-set one the build
  *   cannot know in advance (written with template code) or `false`: those
- *   are left as they are. `lists`: the menu lists' addresses.
- * @returns {{ slugs: Map<string, string>, permalinks: Map<string, string>, lists: (string | null)[], warnings: string[] }}
+ *   are left as they are. `lists`: the menu lists' addresses. `extras`: pages
+ *   built only where their address is free.
+ * @returns {{ slugs: Map<string, string>, permalinks: Map<string, string>, lists: (string | null)[], extras: (string | null)[], warnings: string[] }}
  *   `slugs`: each slug post's address as a slug (no slashes around it), as
  *   the posts' data file reads it. `permalinks`: hand-set addresses that had
  *   to change. `lists`: each list's address, or null where it was taken.
+ *   `extras`: each extra page's address, or null where it was taken (no
+ *   warning: nothing the person wrote is affected).
  */
-export function resolveAddresses({ site, posts, lists = [] }) {
+export function resolveAddresses({ site, posts, lists = [], extras = [] }) {
   const book = addressBook();
   const warnings = [];
   for (const page of site) book.claim(page.url, page.what);
@@ -131,5 +135,7 @@ export function resolveAddresses({ site, posts, lists = [] }) {
     return null;
   });
 
-  return { slugs, permalinks, lists: listUrls, warnings };
+  const extraUrls = extras.map((extra) => (book.claim(extra.url, extra.what) ? null : extra.url));
+
+  return { slugs, permalinks, lists: listUrls, extras: extraUrls, warnings };
 }

@@ -138,8 +138,9 @@ test('the share image carries its alt text — an image nobody can see still get
   assert.match(read('zzt3-img/index.html'), /<meta property="og:image:alt" content="A muddy trail after rain">/);
 });
 
-test('browser chrome matches the paper', () => {
-  assert.match(read('index.html'), /<meta name="theme-color" content="#f5f4f0">/);
+test('browser chrome matches the paper, light and dark', () => {
+  assert.match(read('index.html'), /<meta name="theme-color" content="#f5f4f0" media="\(prefers-color-scheme: light\)">/);
+  assert.match(read('index.html'), /<meta name="theme-color" content="#22251f" media="\(prefers-color-scheme: dark\)">/);
 });
 
 test('a missing URL lands on a calm 404 with a way home, not a GitHub default', () => {
@@ -167,7 +168,7 @@ test('a project-page blog gets exactly ONE path prefix on every link', () => {
 
 test('tags that differ only in case share one page, named by the commoner spelling', () => {
   const page = read('tags/go/index.html');
-  assert.match(page, /<h1>go<\/h1>/);
+  assert.match(page, /<h1>Tagged go<\/h1>/);
   for (const title of ['Go one', 'Go two', 'Go three']) assert.match(page, new RegExp(title));
   assert.equal(page.match(/Go one/g).length, 1, 'a post tagged Go and go is listed once');
   assert.match(read('zzt3-go-3/index.html'), /href="\/blog\/tags\/go\/">GO<\/a>/);
@@ -178,7 +179,10 @@ test('a tag in another script keeps its letters; one with none gets no page or l
   const html = read('zzt3-go-3/index.html');
   assert.match(html, /href="\/blog\/tags\/日本語\/">日本語<\/a>/);
   assert.match(html, /, 🙂<\/p>|, 🙂 ·/);
-  assert.ok(!site.has('tags/index.html'), 'no page at /tags/ for an empty slug');
+  assert.doesNotMatch(read('tags/index.html'), /🙂/, 'the list of tags has none for it');
+  for (const page of ['index.html', 'tags/index.html', 'zzt3-go-3/index.html']) {
+    assert.doesNotMatch(read(page), /\/tags\/\//, page);
+  }
 });
 
 test('template syntax in a post is shown exactly as written, in prose and in code', () => {

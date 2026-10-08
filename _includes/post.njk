@@ -8,17 +8,22 @@ ogType: article
 <article>
   {% if title %}<h1>{{ title }}</h1>{% endif %}
   {%- if not asPage %}
-  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% if tags %} · {% for t in tags %}{% set tagPage = t | tagSlug %}{% if tagPage %}<a href="{{ ((tagHomes and tagHomes[tagPage]) or ("/tags/" + tagPage + "/")) | url }}">{{ t }}</a>{% else %}{{ t }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}{% if blog.author %} · {{ blog.author }}{% endif %}</p>
+  {#- The date, the tags (each once; a menu list's tag in the menu's words,
+      linking to its list) and the author, when the blog's name does not
+      already say who writes it. -#}
+  {%- set line = tags | tagLine %}
+  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% for t in line %}{% if loop.first %} · {% endif %}{% if t.url %}<a href="{{ t.url | url }}">{{ t.label }}</a>{% else %}{{ t.label }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% if blog.author and blog.author != blog.title %} · <span class="by">{{ blog.author }}</span>{% endif %}</p>
   {%- endif %}
   {{ content | safe }}
 </article>
 {# Machine-readable twin of the article, for search results. #}
+{%- set words = content | plainText %}
 <script type="application/ld+json">{{ {
   '@context': 'https://schema.org',
   '@type': 'WebPage' if asPage else 'BlogPosting',
-  headline: title or (content | striptags | truncate(80, true, '…')),
+  headline: title or (words | noteTitle),
   datePublished: undefined if asPage else (date | isoDate),
-  description: description or blog.description,
+  description: description or (words | firstSentence) or undefined,
   url: site.url + page.url if site.url else page.url,
   author: { '@type': 'Person', name: blog.author or blog.title }
 } | jsonld | safe }}</script>

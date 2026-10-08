@@ -1,0 +1,12 @@
+{#- One row of a list of posts: its title, or an untitled note's opening
+    words, over its date. With `section`, the date line also names the menu's
+    list the post belongs to ("Jan 5, 2026 · Book Reviews"). -#}
+{%- macro postRow(post, section = false) %}
+  <li>
+    <a href="{{ post.url | url }}">
+      {% if post.data.title %}<strong>{{ post.data.title }}</strong>{% else %}{{ post.content | plainText | excerpt(120) }}{% endif %}
+    </a>
+    {%- set in = (post.data.tags | sectionOf) if section else null %}
+    <div class="meta">{{ post.date | readableDate }}{% if in %} · {{ in.label }}{% endif %}</div>
+  </li>
+{%- endmacro %}

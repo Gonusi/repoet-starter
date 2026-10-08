@@ -1,0 +1,40 @@
+---
+permalink: /feed.xml
+eleventyExcludeFromCollections: true
+layout: false
+---
+<?xml version="1.0" encoding="utf-8"?>
+{#- The Atom feed: the newest 20 posts of the home list, newest first. The
+    ids are the ones @11ty/eleventy-plugin-rss wrote before (the blog's
+    address, each post's address), so no reader sees an old post as new. An
+    untitled note is titled with its opening words; a post's summary is its
+    description, else its first sentence. -#}
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="{{ blog.language or 'en' }}">
+  <title>{{ blog.title }}</title>
+  <subtitle>{{ blog.description or '' }}</subtitle>
+  <link href="{{ permalink | htmlBaseUrl(feed.base) }}" rel="self" />
+  <link href="{{ feed.base | addPathPrefixToFullUrl }}" />
+  <updated>{{ collections.posts | getNewestCollectionItemDate | dateToRfc3339 }}</updated>
+  <id>{{ feed.base | addPathPrefixToFullUrl }}</id>
+  <author>
+    <name>{{ feed.author }}</name>
+  </author>
+  {%- for post in collections.posts | head(20) %}
+  {%- set absolutePostUrl %}{{ post.url | htmlBaseUrl(feed.base) }}{% endset %}
+  {%- set words = post.content | plainText %}
+  {%- set summary = post.data.description or post.data.summary or (words | firstSentence) %}
+  <entry>
+    <title>{{ post.data.title or (words | noteTitle) }}</title>
+    <link href="{{ absolutePostUrl }}" />
+    <updated>{{ post.date | dateToRfc3339 }}</updated>
+    <id>{{ absolutePostUrl }}</id>
+    {%- if summary %}
+    <summary>{{ summary }}</summary>
+    {%- endif %}
+    {%- for t in post.data.tags | tagLine %}
+    <category term="{{ t.label }}" />
+    {%- endfor %}
+    <content type="html">{{ post.content | renderTransforms(post.data.page, feed.base) }}</content>
+  </entry>
+  {%- endfor %}
+</feed>

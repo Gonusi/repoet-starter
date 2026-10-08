@@ -2,7 +2,8 @@
 // (Repoet's docs/decisions/template-updates.md, invariants 7 and 8).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildManifest, GROUPS } from './manifest.mjs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { buildManifest, GROUPS, POSTS_DATA } from './manifest.mjs';
 
 test('lists every template file by blob sha, and never the person’s settings, posts, favicon or itself', () => {
   const m = buildManifest({
@@ -12,6 +13,15 @@ test('lists every template file by blob sha, and never the person’s settings, 
   });
   assert.deepEqual(m.files, { 'a.njk': 'a', 'b.njk': 'b' });
   assert.equal(m.removed, undefined);
+});
+
+test('the posts’ build settings are listed, though they live under posts/; no post ever is', () => {
+  const m = buildManifest({
+    version: 'v2',
+    files: { [POSTS_DATA]: 'd', 'posts/2026/10/a-b/index.md': 'p', 'posts/other.11tydata.js': 'o' },
+    previous: null,
+  });
+  assert.deepEqual(m.files, { 'posts/posts.11tydata.js': 'd' });
 });
 
 test('a renamed workflow is a removal and an add', () => {
@@ -66,5 +76,27 @@ test('names the files that only work together', () => {
   // a kept config beside a new menu-lists.njk would fail the build.
   for (const path of ['_lib/addresses.js', '_lib/highlight.js', '_lib/menu.js', '_lib/permalinks.js', 'menu-lists.njk']) {
     assert.ok(GROUPS[0].includes(path), path);
+  }
+});
+
+// A layout or page that reads a filter the kept config lacks fails the
+// build; an old layout names a font file a new version removed. Every file
+// the build reads is in the group, and the group names no file the template
+// never had.
+test('every file the build reads goes with the config: its code, every page and layout, the posts’ settings, the fonts', () => {
+  const root = new URL('../', import.meta.url);
+  const at = (dir) => (existsSync(new URL(dir, root)) ? readdirSync(new URL(dir, root)) : []);
+  const builds = [
+    ...at('./').filter((n) => n.endsWith('.njk')),
+    ...at('_includes/').filter((n) => n.endsWith('.njk')).map((n) => `_includes/${n}`),
+    ...at('_lib/').filter((n) => n.endsWith('.js')).map((n) => `_lib/${n}`),
+    ...at('fonts/').filter((n) => n.endsWith('.woff2')).map((n) => `fonts/${n}`),
+    POSTS_DATA,
+  ];
+  for (const path of builds) assert.ok(GROUPS[0].includes(path), `${path} is not in the build group`);
+  const manifest = JSON.parse(readFileSync(new URL('.repoet-template.json', root), 'utf-8'));
+  for (const path of GROUPS[0]) {
+    const known = existsSync(new URL(path, root)) || path in manifest.files || (manifest.removed ?? []).includes(path);
+    assert.ok(known, `${path} is in the group but the template has no such file`);
   }
 });

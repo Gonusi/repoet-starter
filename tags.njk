@@ -7,16 +7,17 @@ pagination:
 permalink: "/tags/{{ tag.slug }}/"
 eleventyExcludeFromCollections: true
 noindex: false
+eleventyComputed:
+  title: "{% set in = [tag.slug] | sectionOf %}{{ in.label if in else 'Tagged ' + tag.name }}"
 ---
-<h1>{{ tag.name }}</h1>
+{#- A tag's posts. A menu list's tag is headed as the menu names it; any
+    other says it is a tag. -#}
+{%- from "post-row.njk" import postRow %}
+{%- set in = [tag.slug] | sectionOf %}
+<h1>{{ in.label if in else 'Tagged ' + tag.name }}</h1>
 <ul class="posts">
-  {%- for post in tag.posts %}
-  <li>
-    <a href="{{ post.url | url }}">
-      {% if post.data.title %}<strong>{{ post.data.title }}</strong>{% else %}{{ post.content | striptags | truncate(120) }}{% endif %}
-    </a>
-    <div class="meta">{{ post.data.date | readableDate }}</div>
-  </li>
-  {%- endfor %}
+  {%- for post in tag.posts %}{{ postRow(post, not in) }}{% endfor %}
 </ul>
-<p class="meta"><a href="{{ '/' | url }}">‹ All posts</a></p>
+{%- if not (collections.menu and collections.menu.length and collections.menu[0].url == '/') %}
+<p class="back"><a href="{{ '/' | url }}">‹ All posts</a></p>
+{%- endif %}

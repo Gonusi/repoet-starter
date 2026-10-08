@@ -5,14 +5,18 @@
 // edited them (see README.md).
 import { copyFileSync, existsSync, globSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
-import { feedPlugin } from '@11ty/eleventy-plugin-rss';
+import { rssPlugin } from '@11ty/eleventy-plugin-rss';
 import matter from 'gray-matter';
+import { imageSize } from 'image-size';
 
 import { resolveAddresses } from './_lib/addresses.js';
+import { dateFormat } from './_lib/dates.js';
 import { footerHtml } from './_lib/footer.js';
-import { highlight } from './_lib/highlight.js';
-import { planMenu, readMenu } from './_lib/menu.js';
+import { configureMarkdown } from './_lib/markdown.js';
+import { fitMedia } from './_lib/media.js';
+import { homeLabel, planMenu, readMenu, sectionOf, sectionsOf, tagLine } from './_lib/menu.js';
 import { shortIdFromPath } from './_lib/permalinks.js';
+import { excerpt, firstSentence, noteTitle, plainText } from './_lib/text.js';
 
 /**
  * A post's slug: the `slug:` line of its frontmatter as written, else the
@@ -53,7 +57,7 @@ export default function (eleventyConfig) {
 
   // The footer under every page (blog.json "footer", _lib/footer.js): one
   // line of inline Markdown, HTML off. Missing: Repoet's credit; "": none.
-  const footer = footerHtml(blog.footer);
+  const footer = footerHtml(blog.footer, { language: blog.language });
   if (footer.warning) console.warn(`[repoet] ${footer.warning}`);
   eleventyConfig.addGlobalData('footerHtml', footer.html);
 
@@ -64,26 +68,22 @@ export default function (eleventyConfig) {
   eleventyConfig.addGlobalData('site', { url: siteUrl });
 
   // Atom feed — the distribution channel that matters for a developer blog.
-  eleventyConfig.addPlugin(feedPlugin, {
-    // The feed plugin registers Eleventy's HtmlBase plugin TWICE (itself and
-    // via its inner rssPlugin) — with a real pathPrefix every root-relative
-    // link got the prefix twice (/blog/blog/…; found 2026-08-30, the Tier 1
-    // tests never built with a prefix). baseHref '/' disables its global
-    // transform on both registrations; templates prefix once via `| url`,
-    // and the FEED still absolutizes through its explicit per-render base.
-    htmlBasePluginOptions: { baseHref: '/' },
-    rssPluginOptions: { htmlBasePluginOptions: { baseHref: '/' } },
-    type: 'atom',
-    outputPath: '/feed.xml',
-    collection: { name: 'posts', limit: 20 },
-    metadata: {
-      language: blog.language || 'en',
-      title: blog.title,
-      subtitle: blog.description || '',
-      base: siteUrl ? `${siteUrl}/` : 'https://localhost/',
-      author: { name: blog.author || blog.title },
-    },
+  // Written by feed.njk: the newest 20 posts of the home list, an untitled
+  // note titled with its own opening words. The feed plugin's own template
+  // took the oldest 20 (it expects its collection oldest first), so from the
+  // 21st post on a new post never reached subscribers, and an untitled note
+  // was an empty <title> (views critique, 2026-10-08). Its ids are the ones
+  // the plugin wrote, so no reader sees an old post as new.
+  // The plugin's filters stay: Eleventy's HtmlBase plugin with baseHref '/',
+  // so templates prefix links once via `| url` (a real pathPrefix once got
+  // it twice, /blog/blog/…, 2026-08-30), and the feed makes its links
+  // absolute through its explicit per-render base.
+  eleventyConfig.addPlugin(rssPlugin, { htmlBasePluginOptions: { baseHref: '/' } });
+  eleventyConfig.addGlobalData('feed', {
+    base: siteUrl ? `${siteUrl}/` : 'https://localhost/',
+    author: blog.author || blog.title,
   });
+  eleventyConfig.addFilter('head', (items, n) => [].concat(items ?? []).slice(0, n));
 
   // A tag's address. Tags that differ only in case or punctuation ("Go",
   // "go") share one page: two pages at /tags/go/ failed the whole build
@@ -158,6 +158,7 @@ export default function (eleventyConfig) {
       ...('permalink' in data ? { permalink: knownPermalink(data.permalink) } : {}),
     })),
     lists: lists.map((i) => ({ url: i.path, what: `the menu's "${i.label}" list` })),
+    extras: [{ url: '/tags/', what: 'the list of tags' }],
   });
   for (const w of addresses.warnings) console.warn(`[repoet] ${w}`);
   // Key by a normalized suffix so posts.11tydata.js can match Eleventy's inputPath.
@@ -171,6 +172,15 @@ export default function (eleventyConfig) {
     if (moved) data.permalink = moved;
   });
   const listUrl = new Map(lists.map((item, i) => [item, addresses.lists[i]]));
+  // The list of every tag, at /tags/ only while nothing else is there
+  // (tags-index.njk): a post at /tags/ keeps it.
+  eleventyConfig.addGlobalData('tagsIndex', addresses.extras[0] ? [{ url: addresses.extras[0] }] : []);
+
+  // The menu's sections: entries that list several posts (_lib/menu.js). A
+  // post in one is marked as being there: its menu item, its tag line, its
+  // row on the home list.
+  const sections = sectionsOf(plan.items, (i) => listUrl.get(i) ?? `/tags/${i.slug}/`);
+  eleventyConfig.addFilter('sectionOf', (tags) => sectionOf(sections, tagSlugsOf(tags)));
 
   // The header's menu, in order: a tag with one post links to it, one with
   // several to its list, one with none is left out. While the menu has a
@@ -188,7 +198,7 @@ export default function (eleventyConfig) {
         list: i.posts.length > 1,
       }))
       .filter((link) => typeof link.url === 'string');
-    return links.some((link) => link.list) ? [{ label: 'All', url: '/', list: true }, ...links] : links;
+    return links.some((link) => link.list) ? [{ label: homeLabel(sections), url: '/', list: true }, ...links] : links;
   });
   // A menu list at its own address (menu-lists.njk), newest first.
   eleventyConfig.addCollection('menuLists', (api) => {
@@ -207,10 +217,10 @@ export default function (eleventyConfig) {
   // no date, no tag line (post.njk, layout.njk).
   eleventyConfig.addGlobalData('menuPages', Object.fromEntries([...plan.pages].map((p) => [`./${p}`, true])));
   // Where a post's tag links: the menu list's own address when it has one.
-  eleventyConfig.addGlobalData(
-    'tagHomes',
-    Object.fromEntries(lists.filter((i) => listUrl.get(i)).map((i) => [i.slug, listUrl.get(i)])),
-  );
+  const tagHomes = Object.fromEntries(lists.filter((i) => listUrl.get(i)).map((i) => [i.slug, listUrl.get(i)]));
+  eleventyConfig.addGlobalData('tagHomes', tagHomes);
+  // A post's tag line: each tag once, a section's tag in the menu's words.
+  eleventyConfig.addFilter('tagLine', (tags) => tagLine(tags, { tagSlug, sections, homes: tagHomes }));
 
   // A draft is not built at all: no page, and it is in no list, feed,
   // sitemap or tag page. Its attachments stay unpublished too (below).
@@ -280,11 +290,58 @@ export default function (eleventyConfig) {
 
   eleventyConfig.addFilter('isoDate', (value) => new Date(value).toISOString());
 
-  // Code blocks are coloured when the site is built (_lib/highlight.js):
-  // readers get coloured HTML and no script. The colours are in
-  // _includes/layout.njk. A block with an unknown language, or none, stays
-  // plain, escaped as Markdown always escaped it.
-  eleventyConfig.amendLibrary('md', (md) => md.set({ highlight }));
+  // The Markdown (_lib/markdown.js): code coloured when the site is built
+  // (_lib/highlight.js), so readers get coloured HTML and no script, and a
+  // block in an unknown language, or none, stays plain, escaped as Markdown
+  // always escaped it; typographic quotes in the blog's language; bare
+  // https:// addresses as links; an image on a line of its own as a figure,
+  // its title the caption.
+  eleventyConfig.amendLibrary('md', (md) => configureMarkdown(md, { language: blog.language }));
+
+  // Images and frames in a post fit the column and load lazily (_lib/media.js).
+  // An image's size is read from its file in the post's folder.
+  const sizes = new Map();
+  const sizeOf = (folder) => (src) => {
+    if (!src || /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(src)) return null;
+    let path;
+    try {
+      const clean = decodeURI(src.split(/[?#]/)[0]);
+      path = clean.startsWith('/') ? normalize(join('.', clean)) : normalize(join(folder, clean));
+    } catch {
+      return null;
+    }
+    if (!sizes.has(path)) {
+      let size = null;
+      try {
+        const found = existsSync(path) ? imageSize(readFileSync(path)) : null;
+        if (found?.width && found?.height) {
+          // A photo turned by its EXIF orientation shows turned.
+          const turned = found.orientation >= 5 && found.orientation <= 8;
+          size = turned ? { width: found.height, height: found.width } : { width: found.width, height: found.height };
+        }
+      } catch {
+        /* not an image this can read: left as it is */
+      }
+      sizes.set(path, size);
+    }
+    return sizes.get(path);
+  };
+  eleventyConfig.addTransform('media', function (html) {
+    const inputPath = String(this.page?.inputPath ?? '').replace(/^\.\//, '');
+    if (!/^posts\/.+\.md$/.test(inputPath) || !String(this.page?.outputPath ?? '').endsWith('.html')) return html;
+    return fitMedia(html, { sizeOf: sizeOf(dirname(inputPath)) });
+  });
+
+  // A post's own words as text: an untitled note's title, a description the
+  // post does not give (_lib/text.js).
+  eleventyConfig.addFilter('plainText', plainText);
+  eleventyConfig.addFilter('excerpt', excerpt);
+  eleventyConfig.addFilter('firstSentence', firstSentence);
+  eleventyConfig.addFilter('noteTitle', noteTitle);
+  // The post at this input path in a collection: its body, without the layout.
+  eleventyConfig.addFilter('itemAt', (items, inputPath) =>
+    [].concat(items ?? []).find((item) => item.inputPath === inputPath) ?? null,
+  );
 
   // ——— Tier 2 SEO: link unfurls (PROGRESS, 2026-08-30) ———
   // The share image, zero-config: a post's first body image is usually the
@@ -302,15 +359,11 @@ export default function (eleventyConfig) {
     if (/^https?:\/\//.test(src)) return src;
     return src.startsWith('/') ? `${siteUrl}${src}` : new URL(src, `${siteUrl}${pageUrl}`).href;
   });
-  // `</` must not terminate the script block a JSON-LD object lives in.
-  eleventyConfig.addFilter('jsonld', (obj) =>
-    JSON.stringify(obj).replaceAll('</', '<\\/'),
-  );
-  eleventyConfig.addFilter('readableDate', (value) =>
-    new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(
-      new Date(value),
-    ),
-  );
+  // No `<` reaches the script block a JSON-LD object lives in: `</script>`
+  // in a description would end it. JSON reads \u003c as the same "<".
+  eleventyConfig.addFilter('jsonld', (obj) => JSON.stringify(obj).replaceAll('<', '\\u003c'));
+  // Dates in the blog's language (_lib/dates.js): "Jan 29, 2026" in English.
+  eleventyConfig.addFilter('readableDate', dateFormat(blog.language));
 
   // Every published post, newest first: the sitemap's list.
   eleventyConfig.addCollection('everyPost', (api) =>
