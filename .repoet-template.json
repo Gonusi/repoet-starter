@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-08.0919d12",
+  "version": "2026-10-08.1163b18",
   "files": {
     ".github/workflows/deploy.yml": "e72332549f91b14356fc74f3d29fa9cbc4af7c04",
     ".gitignore": "24c994505350cba2eedd447b5bb3dc28fe83f5d8",
@@ -34,7 +34,7 @@
     "_lib/text.js": "f542363e2df58132ee9c9cf9960245609c025636",
     "_lib/text.test.mjs": "7830435da5327b3c9caad7593ca22c905753e1f4",
     "_lib/tier3.test.mjs": "1a9622dad918e79c20080f06f5a1a2f339ad5900",
-    "_lib/views.test.mjs": "4560093ca4c5f36304ebab88b5a39b8aa7d6dc91",
+    "_lib/views.test.mjs": "e7534730d61cef10423603bc98e8178c06f5e9aa",
     "_lib/workflow.test.mjs": "a7d725c67503c7bf4873c3886b50e83537ff24ea",
     "eleventy.config.js": "aaee3be5312bac5ff86e9521b555ec556f5b0f2f",
     "feed.njk": "facef201c6b27101b586d3802364014076e756a8",
