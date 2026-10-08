@@ -115,7 +115,7 @@ after(() => {
   pages?.dispose();
 });
 
-const header = (html) => /<header>[\s\S]*?<\/header>/.exec(html)[0];
+const header = (html) => /<header[^>]*>[\s\S]*?<\/header>/.exec(html)[0];
 const links = (html) => [...header(html).matchAll(/<nav[\s\S]*?<\/nav>/g)].join('').match(/<a [^>]*>[^<]*<\/a>/g) ?? [];
 
 test('the header shows the menu in its order; a tag with no posts is left out', () => {
@@ -124,6 +124,16 @@ test('the header shows the menu in its order; a tag with no posts is left out', 
     nav.map((a) => />([^<]*)</.exec(a)[1]),
     ['All', 'About', 'TIL', 'Books', 'Notes', 'Taken'],
   );
+});
+
+test('a header with a menu says so, for its layout; one without is as it was', () => {
+  // The layout rule (layout.njk): with a menu, the header spreads title and
+  // menu apart while they fit on one line, and a menu alone on its line
+  // starts at the left; on a phone the menu always has its own line.
+  assert.match(site.read('index.html'), /<header class="with-menu">/);
+  assert.match(site.read('index.html'), /header\.with-menu \{ justify-content: space-between; \}/);
+  assert.match(site.read('index.html'), /@media \(max-width: 40rem\) \{\s*header\.with-menu nav \{ flex-basis: 100%; \}/);
+  assert.match(plain.read('index.html'), /<header>/);
 });
 
 test('while the menu has a list, "All" comes first, links home, and is current there', () => {

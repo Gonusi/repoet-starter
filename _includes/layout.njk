@@ -87,10 +87,22 @@
     blockquote { border-left: 2px solid var(--rule); margin-left: 0; padding-left: 1rem; color: var(--ink-soft); font-style: italic; }
     hr { border: none; border-top: 1px solid var(--rule); }
     .empty { font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft); }
-    /* The menu (blog.json "menu"): beside the title, under it on a phone. */
-    header nav { display: flex; flex-wrap: wrap; gap: 0 1.1rem; margin-left: auto; }
+    /* The menu (blog.json "menu"): beside the title on a wide screen while it
+       fits, right-aligned; otherwise under it, starting at the title's left
+       edge, wrapping to a second line when it must. On a phone it is always
+       under the title. Plain links, no script. (space-between puts a lone
+       item on a line at its start; the tagline's auto margin keeps it by the
+       title.) */
+    header.with-menu { justify-content: space-between; }
+    header.with-menu .tagline { margin-right: auto; }
+    header nav { display: flex; flex-wrap: wrap; gap: 0 1.2rem; }
     header nav a { font-family: var(--mono); font-style: normal; font-weight: 400; font-size: 0.8rem;
                    padding: 0.3rem 0; color: var(--ink); }
+    @media (max-width: 40rem) {
+      header.with-menu nav { flex-basis: 100%; }
+      /* 44px to tap. */
+      header nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0; }
+    }
     header nav a:hover { color: var(--green-deep); }
     header nav a[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 1px;
                                         text-underline-offset: 4px; text-decoration-color: var(--green); }
@@ -109,14 +121,15 @@
   </style>
 </head>
 <body>
-  <header>
+  {%- set menuLinks = collections.menu if (collections.menu and collections.menu.length) else [] %}
+  <header{% if menuLinks.length %} class="with-menu"{% endif %}>
     <a href="{{ '/' | url }}">{{ blog.title }}</a>
     {%- if blog.showDescription and blog.description %}
     <span class="tagline">{{ blog.description }}</span>
     {%- endif %}
-    {%- if collections.menu and collections.menu.length %}
+    {%- if menuLinks.length %}
     <nav aria-label="Menu">
-      {%- for link in collections.menu %}
+      {%- for link in menuLinks %}
       <a href="{{ link.url | url }}"{% if link.url == page.url %} aria-current="page"{% endif %}>{{ link.label }}</a>
       {%- endfor %}
     </nav>
