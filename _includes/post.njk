@@ -6,13 +6,16 @@ ogType: article
     no date, no tag line (blog.json "menu"). -#}
 {%- set asPage = menuPages and menuPages[page.inputPath] -%}
 <article>
-  {% if title %}<h1>{{ title }}</h1>{% endif %}
+  {#- An untitled note is named for a screen reader by the words its tab
+      title uses, never shown: a note has no title on purpose (second pass N12). -#}
+  {% if title %}<h1>{{ title }}</h1>{% else %}<h1 class="visually-hidden">{{ content | plainText | noteTitle }}</h1>{% endif %}
   {%- if not asPage %}
   {#- The date, the tags (each once; a menu list's tag in the menu's words,
-      linking to its list) and the author, when the blog's name does not
-      already say who writes it. -#}
+      linking to its list) and the post's own author, when it has one that
+      is not the blog's (second pass N17: the blog's author on every post
+      of a one-author blog was noise). -#}
   {%- set line = tags | tagLine %}
-  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% for t in line %}{% if loop.first %} · {% endif %}{% if t.url %}<a href="{{ t.url | url }}">{{ t.label }}</a>{% else %}{{ t.label }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% if blog.author and blog.author != blog.title %} · <span class="by">{{ blog.author }}</span>{% endif %}</p>
+  <p class="meta"><time datetime="{{ date | isoDate }}">{{ date | readableDate }}</time>{% for t in line %}{% if loop.first %} · {% endif %}{% if t.url %}<a href="{{ t.url | url }}">{{ t.label }}</a>{% else %}{{ t.label }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% if author and author != blog.author %} · <span class="by">{{ author }}</span>{% endif %}</p>
   {%- endif %}
   {{ content | safe }}
 </article>
@@ -23,7 +26,7 @@ ogType: article
   '@type': 'WebPage' if asPage else 'BlogPosting',
   headline: title or (words | noteTitle),
   datePublished: undefined if asPage else (date | isoDate),
-  description: description or (words | firstSentence) or undefined,
+  description: description or (content | leadSentence) or undefined,
   url: site.url + page.url if site.url else page.url,
-  author: { '@type': 'Person', name: blog.author or blog.title }
+  author: { '@type': 'Person', name: (author if author and author != blog.author else blog.author) or blog.title }
 } | jsonld | safe }}</script>

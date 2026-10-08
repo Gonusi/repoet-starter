@@ -2,7 +2,7 @@
 // views critique P8, P10).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fitMedia } from './media.js';
+import { fitMedia, markBareLinks, printVideos } from './media.js';
 
 const sizes = { 'tall.jpg': { width: 1400, height: 2400 }, 'wide.png': { width: 800, height: 600 } };
 const sizeOf = (src) => sizes[src] ?? null;
@@ -43,4 +43,25 @@ test('a frame loads lazily and keeps its width-to-height when the column is narr
 test('scripts, styles and comments are passed through: an <img in a JSON-LD string is not touched', () => {
   const html = '<script type="application/ld+json">{"d":"<img src=x>"}</script><!-- <img src=y> --><img src="wide.png">';
   assert.match(fitMedia(html, { sizeOf }), /^<script type="application\/ld\+json">\{"d":"<img src=x>"\}<\/script><!-- <img src=y> --><img src="wide.png" decoding/);
+});
+
+// Views critique 2026-10-08, second pass N15: print doubled a bare URL, and
+// printed a video as a black box.
+test('a link whose words are its address is marked bare, so print does not repeat it', () => {
+  assert.equal(
+    markBareLinks('<a href="https://example.com/link">https://example.com/link</a> and <a href="https://x.org">x</a>'),
+    '<a href="https://example.com/link" class="bare">https://example.com/link</a> and <a href="https://x.org">x</a>',
+  );
+  assert.equal(markBareLinks('<a class="u" href="https://a.b/">https://a.b</a>'), '<a class="u bare" href="https://a.b/">https://a.b</a>');
+});
+
+test('a video is followed by its address, for print only', () => {
+  assert.equal(
+    printVideos('<video controls src="clip.mp4"></video>'),
+    '<video controls src="clip.mp4"></video><a class="print-only bare" href="clip.mp4">clip.mp4</a>',
+  );
+  assert.equal(
+    printVideos('<video controls><source src="https://v.example/a.mp4" type="video/mp4"></video>'),
+    '<video controls><source src="https://v.example/a.mp4" type="video/mp4"></video><a class="print-only bare" href="https://v.example/a.mp4">https://v.example/a.mp4</a>',
+  );
 });

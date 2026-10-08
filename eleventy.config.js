@@ -16,7 +16,7 @@ import { configureMarkdown } from './_lib/markdown.js';
 import { fitMedia } from './_lib/media.js';
 import { homeLabel, planMenu, readMenu, sectionOf, sectionsOf, tagLine } from './_lib/menu.js';
 import { shortIdFromPath } from './_lib/permalinks.js';
-import { excerpt, firstSentence, noteTitle, plainText } from './_lib/text.js';
+import { excerpt, firstSentence, leadSentence, noteTitle, plainText } from './_lib/text.js';
 
 /**
  * A post's slug: the `slug:` line of its frontmatter as written, else the
@@ -337,6 +337,7 @@ export default function (eleventyConfig) {
   eleventyConfig.addFilter('plainText', plainText);
   eleventyConfig.addFilter('excerpt', excerpt);
   eleventyConfig.addFilter('firstSentence', firstSentence);
+  eleventyConfig.addFilter('leadSentence', leadSentence);
   eleventyConfig.addFilter('noteTitle', noteTitle);
   // The post at this input path in a collection: its body, without the layout.
   eleventyConfig.addFilter('itemAt', (items, inputPath) =>
@@ -362,7 +363,7 @@ export default function (eleventyConfig) {
   // No `<` reaches the script block a JSON-LD object lives in: `</script>`
   // in a description would end it. JSON reads \u003c as the same "<".
   eleventyConfig.addFilter('jsonld', (obj) => JSON.stringify(obj).replaceAll('<', '\\u003c'));
-  // Dates in the blog's language (_lib/dates.js): "Jan 29, 2026" in English.
+  // Dates in the blog’s language (_lib/dates.js): "29 Jan 2026" in English.
   eleventyConfig.addFilter('readableDate', dateFormat(blog.language));
 
   // Every published post, newest first: the sitemap's list.

@@ -22,7 +22,7 @@ layout: false
   {%- for post in collections.posts | head(20) %}
   {%- set absolutePostUrl %}{{ post.url | htmlBaseUrl(feed.base) }}{% endset %}
   {%- set words = post.content | plainText %}
-  {%- set summary = post.data.description or post.data.summary or (words | firstSentence) %}
+  {%- set summary = post.data.description or post.data.summary or (post.content | leadSentence) %}
   <entry>
     <title>{{ post.data.title or (words | noteTitle) }}</title>
     <link href="{{ absolutePostUrl }}" />

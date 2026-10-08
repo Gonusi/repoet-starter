@@ -53,8 +53,41 @@ export function fitMedia(html, { sizeOf = () => null } = {}) {
   // Scripts (the JSON-LD), styles and comments are passed through untouched.
   return String(html)
     .split(/(<script\b[\s\S]*?<\/script\s*>|<style\b[\s\S]*?<\/style\s*>|<!--[\s\S]*?-->)/i)
-    .map((part, i) => (i % 2 === 1 ? part : fitFrames(fitImages(part, seen, sizeOf))))
+    .map((part, i) => (i % 2 === 1 ? part : printVideos(markBareLinks(fitFrames(fitImages(part, seen, sizeOf))))))
     .join('');
+}
+
+/**
+ * A link whose words are its own address ("https://example.com/link",
+ * linkified or written out) is marked `bare`, so print does not add the
+ * address a second time after it (views critique 2026-10-08, second pass
+ * N15).
+ */
+export function markBareLinks(html) {
+  return String(html).replace(/(<a\b(?:[^>"']|"[^"]*"|'[^']*')*>)([^<]*)<\/a>/gi, (whole, open, text) => {
+    const href = decodeEntities(attr(open, 'href') ?? '').trim();
+    const words = decodeEntities(text).trim();
+    const same = href !== '' && (words === href || words === href.replace(/^mailto:/i, '') || `${words}/` === href);
+    if (!same) return whole;
+    const own = attr(open, 'class');
+    const tag = own === null ? withAttrs(open, { class: 'bare' }) : open.replace(ATTR('class'), ` class="${own} bare"`);
+    return `${tag}${text}</a>`;
+  });
+}
+
+/**
+ * On paper a video is its address, not a black player box (second pass
+ * N15): after each <video>, a link to its file that only print shows.
+ */
+export function printVideos(html) {
+  return String(html).replace(/<video\b[\s\S]*?<\/video\s*>/gi, (video) => {
+    const open = video.match(TAG('video'))?.[0] ?? '';
+    const source = video.match(TAG('source'))?.[0] ?? '';
+    const src = attr(open, 'src') || attr(source, 'src');
+    if (!src) return video;
+    const safe = src.replace(/&(?!(?:[a-z]+|#\d+|#x[0-9a-f]+);)/gi, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    return `${video}<a class="print-only bare" href="${safe}">${safe}</a>`;
+  });
 }
 
 function fitImages(html, seen, sizeOf) {

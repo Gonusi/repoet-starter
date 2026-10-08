@@ -76,3 +76,39 @@ export function noteTitle(text, max = 60) {
   if (first && [...first].length <= max + 10) return first;
   return excerpt(s, max);
 }
+
+// What a description skips: code, headings, figures, tables and embeds,
+// with whatever they hold.
+const NOT_PROSE = /<(pre|h[1-6]|figure|table|iframe|video|audio|object|script|style|template)\b[\s\S]*?<\/\1\s*>/gi;
+const PARAGRAPH = /<p\b[^>]*>([\s\S]*?)<\/p\s*>/gi;
+
+/**
+ * A line of fields, "Arthur L. Guptill · ISBN 978-0-307-83188-0 · Year
+ * 2014", as the owner's migration put over each book review: two or more
+ * short parts joined by "·".
+ */
+export function isFieldLine(text) {
+  const parts = String(text ?? '').split('·').map((p) => p.trim());
+  // A field is a few words ("Arthur L. Guptill", "Year 2021 (Originally
+  // 1985)"); a sentence runs longer.
+  return parts.length >= 2 && parts.every((p) => p !== '' && [...p].length <= 60 && p.split(/\s+/).length <= 8);
+}
+
+/**
+ * A post's own description when it gives none: the first sentence of its
+ * first paragraph of prose, never running into the next block (views
+ * critique 2026-10-08, second pass N1: "Arthur L. Guptill · ISBN … · Year
+ * 2014 People that know me…" on a real share card, and a code-first post's
+ * code as its summary). Code, headings, figures, tables, embeds, a
+ * paragraph of pictures alone and a line of fields are skipped. '' when the
+ * post has no prose paragraph.
+ */
+export function leadSentence(html, max = 160) {
+  const prose = String(html ?? '').replace(/<!--[\s\S]*?-->/g, ' ').replace(NOT_PROSE, ' ');
+  for (const match of prose.matchAll(PARAGRAPH)) {
+    const text = plainText(match[1]);
+    if (text === '' || isFieldLine(text)) continue;
+    return firstSentence(text, max);
+  }
+  return '';
+}

@@ -49,6 +49,8 @@ before(async () => {
     post(site, `2026/01/aa0000${n}-p${n}`, [`id: p${n}`, `title: Post ${n}`, `slug: p${n}`, `date: ${day}T10:00:00Z`], `Body ${n}.`);
   }
   post(site, '2026/09/bb000001-newest', ['id: newest', 'title: Newest post', 'slug: newest', 'date: 2026-09-30T10:00:00Z'], 'The newest.');
+  post(site, '2026/09/bb000020-guest', ['id: guest', 'title: A guest post', 'slug: guest', 'author: Grace', 'date: 2026-09-01T10:00:00Z'], 'Grace writes.');
+  post(site, '2026/09/bb000021-ada-own', ['id: ada-own', 'title: Ada again', 'slug: ada-own', 'author: Ada', 'date: 2026-09-02T10:00:00Z'], 'Ada writes.');
   post(site, '2026/09/bb000002-note', ['id: note', 'slug: note', 'date: 2026-09-20T10:00:00Z'],
     'Shipped the new feed today. It took three tries & a *bit* of luck.');
   post(site, '2026/09/bb000003-long-note', ['id: long-note', 'slug: long-note', 'date: 2026-09-19T10:00:00Z'],
@@ -84,6 +86,23 @@ before(async () => {
   post(site, '2026/09/bb000008-book-two', ['id: book-2', 'title: Another Book', 'slug: book-two', 'date: 2026-09-14T10:00:00Z', 'tags: [books]'], 'Another review.');
   post(site, '2026/09/bb000009-til-one', ['id: til-1', 'title: TIL one', 'slug: til-one', 'date: 2026-09-13T10:00:00Z', 'tags: [til, go]'], 'Learned.');
   post(site, '2026/09/bb000010-til-two', ['id: til-2', 'title: TIL two', 'slug: til-two', 'date: 2026-09-12T10:00:00Z', 'tags: [til]'], 'Learned more.');
+  post(site, '2026/09/bb000012-book-fields', ['id: book-fields', 'title: Rendering in Pen and Ink', 'slug: book-fields', 'date: 2026-09-11T10:00:00Z'], [
+    'Arthur L. Guptill · ISBN 978-0-307-83188-0 · Year 2014',
+    '',
+    'People that know me will know I like to doodle and perhaps even paint. Since then, more.',
+  ].join('\n'));
+  post(site, '2026/09/bb000013-code-first', ['id: code-first', 'title: Code first', 'slug: code-first', 'date: 2026-09-10T10:00:00Z'], [
+    '```ts',
+    'type A = { a: number }; // comment',
+    '```',
+    '',
+    'A type with one number in it, and nothing else.',
+  ].join('\n'));
+  post(site, '2026/09/bb000014-video', ['id: video', 'title: Video', 'slug: video', 'date: 2026-09-09T10:00:00Z'], [
+    'See https://example.com/link here.',
+    '',
+    '<video controls src="clip.mp4"></video>',
+  ].join('\n'));
   post(site, '2026/09/bb000011-about', ['id: about', 'title: About me', 'slug: about', 'date: 2026-09-01T10:00:00Z', 'tags: [about]'], 'Hello.');
   await site.build({ SITE_URL: SITE });
 
@@ -187,7 +206,7 @@ test('a tag page says it is a tag; the list of tags links every tag once', () =>
 test('a post in a menu list: its menu item is marked, and its tag line uses the menu’s words and address', () => {
   const html = read('book-one/index.html');
   assert.match(html, /<a href="\/books\/" aria-current="true">Book Reviews<\/a>/);
-  assert.match(html, /<a href="\/tags\/british\/">British<\/a>, <a href="\/books\/">Book Reviews<\/a> · /, 'books and Books once, as the menu says');
+  assert.match(html, /<a href="\/tags\/british\/">British<\/a>, <a href="\/books\/">Book Reviews<\/a><\/p>/, 'books and Books once, as the menu says');
   assert.match(read('til-one/index.html'), /<a href="\/tags\/til\/" aria-current="true">TIL<\/a>/);
   assert.match(read('til-one/index.html'), /<a href="\/tags\/til\/">TIL<\/a>, <a href="\/tags\/go\/">go<\/a>/);
   assert.doesNotMatch(read('newest/index.html'), /aria-current="/, 'a post in no list marks nothing');
@@ -196,9 +215,9 @@ test('a post in a menu list: its menu item is marked, and its tag line uses the 
 
 test('the home list names a post’s section under its date; a section’s own list does not repeat it', () => {
   const home = read('index.html');
-  assert.match(home, /<strong>A Book<\/strong>\s*<\/a>\s*<div class="meta">Sep 15, 2026 · Book Reviews<\/div>/);
-  assert.match(home, /<strong>Newest post<\/strong>\s*<\/a>\s*<div class="meta">Sep 30, 2026<\/div>/);
-  assert.match(read('books/index.html'), /<div class="meta">Sep 15, 2026<\/div>/);
+  assert.match(home, /<strong>A Book<\/strong>\s*<\/a>\s*<div class="meta">15 Sep 2026 · Book Reviews<\/div>/);
+  assert.match(home, /<strong>Newest post<\/strong>\s*<\/a>\s*<div class="meta">30 Sep 2026<\/div>/);
+  assert.match(read('books/index.html'), /<div class="meta">15 Sep 2026<\/div>/);
 });
 
 test('the way home is "All" while every list is on the home page, and the blog’s name is the home page’s heading', () => {
@@ -219,7 +238,7 @@ test('"‹ All posts" is one style, and only where the header has no way home', 
 
 test('quotes are typographic and a bare address is a link; code keeps its straight quotes', () => {
   const html = read('words/index.html');
-  assert.match(html, /He said “it’s fine” -- see <a href="https:\/\/example.com\/page">https:\/\/example.com\/page<\/a> and README.md./);
+  assert.match(html, /He said “it’s fine” -- see <a href="https:\/\/example.com\/page" class="bare">https:\/\/example.com\/page<\/a> and README.md./);
   assert.match(html, /<code>&quot;q&quot; it's<\/code>/);
   assert.match(html, /<span class="token string">"it's"<\/span>/);
 });
@@ -303,10 +322,10 @@ test('dates and quotes follow the blog’s language', () => {
   assert.match(html, /<html lang="de">/);
   assert.match(html, /<time datetime="2026-01-29T10:00:00.000Z">29. Jan. 2026<\/time>/);
   assert.match(html, /Sie sagte „ja“ und ‚nein‘./);
-  assert.match(read('newest/index.html'), />Sep 30, 2026<\/time>/, 'English as before');
+  assert.match(read('newest/index.html'), />30 Sep 2026<\/time>/, 'English day first (second pass N13)');
 });
 
-test('a blog with no menu, footer or description: no menu, no footer, no empty description; the author named once', () => {
+test('a blog with no menu, footer or description: no menu, no footer, no empty description; no author line', () => {
   const home = plain.read('index.html');
   assert.doesNotMatch(home, /<nav aria-label="Menu"/);
   assert.doesNotMatch(home, /<footer/);
@@ -314,5 +333,44 @@ test('a blog with no menu, footer or description: no menu, no footer, no empty d
   assert.doesNotMatch(home, /og:description/);
   const html = plain.read('hallo/index.html');
   assert.doesNotMatch(html, /class="by"/, 'the blog’s name already says who writes it');
-  assert.match(read('newest/index.html'), / · <span class="by">Ada<\/span><\/p>/, 'a name the blog’s does not say is shown');
+});
+
+// Second pass N17: the blog's own author showed on every post of a
+// one-author blog. A post names an author only when it has one of its own.
+test('a post names its author only when it is not the blog’s', () => {
+  assert.doesNotMatch(read('newest/index.html'), /class="by"/, 'the blog’s author, Ada, is not repeated on each post');
+  assert.match(read('guest/index.html'), / · <span class="by">Grace<\/span><\/p>/);
+  assert.doesNotMatch(read('ada-own/index.html'), /class="by"/, 'a post whose author is the blog’s says nothing more');
+});
+
+// ——— Second pass (views critique 2026-10-08, round 3) ———
+
+test('a post’s own description is the first sentence of its first prose paragraph: a book review’s field line and a code-first post’s code are skipped (N1)', () => {
+  const book = read('book-fields/index.html');
+  assert.equal(meta(book, 'name', 'description'), 'People that know me will know I like to doodle and perhaps even paint.');
+  assert.equal(meta(book, 'property', 'og:description'), 'People that know me will know I like to doodle and perhaps even paint.');
+  const code = read('code-first/index.html');
+  assert.equal(meta(code, 'name', 'description'), 'A type with one number in it, and nothing else.');
+  assert.match(read('feed.xml'), /<summary>A type with one number in it, and nothing else\.<\/summary>|A type with one number in it, and nothing else\./);
+});
+
+test('an untitled note is named for a screen reader by a hidden heading, the words of its tab title (N12)', () => {
+  const html = read('note/index.html');
+  assert.match(html, /<h1 class="visually-hidden">Shipped the new feed today\.<\/h1>/);
+  assert.match(css(), /\.visually-hidden \{ position: absolute;/);
+});
+
+test('the tagline has its own line under the title on every screen (N14)', () => {
+  assert.match(css(), /header \.tagline \{ flex-basis: 100%;/);
+  assert.doesNotMatch(css(), /\.tagline \{ order:/);
+});
+
+test('on paper a bare address is not printed twice, and a video prints as its address (N15); a frame has no browser border (N16)', () => {
+  const html = read('video/index.html');
+  assert.match(html, /<a href="https:\/\/example\.com\/link" class="bare">https:\/\/example\.com\/link<\/a>/);
+  assert.match(html, /<\/video><a class="print-only bare" href="clip\.mp4">clip\.mp4<\/a>/);
+  const print = /@media print \{([\s\S]*?)\n    \}/.exec(css())[1];
+  assert.match(print, /article a\[href\^="http"\]:not\(\.bare\)::after/);
+  assert.match(print, /video \{ display: none; \}/);
+  assert.match(css(), /iframe \{ border: 0; \}/);
 });

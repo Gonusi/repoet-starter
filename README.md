@@ -62,8 +62,9 @@ stop using the app entirely.
   keeps its proportions on a phone.
 - A post without a title is named by its opening words in the browser's
   tab, on a share card and in the feed; a post without a `description` is
-  described by its first sentence.
-- Dates are in the blog's `language`: "Jan 29, 2026" in English.
+  described by the first sentence of its first paragraph of prose (code, headings, figures, embeds and a line of `·`-joined fields are skipped).
+- Dates are in the blog's `language`: "29 Jan 2026" in English, day first.
+- A post shows an author beside its date only when its own `author:` is not `blog.json`'s (a guest post); the blog's author is the page's author metadata.
 - The feed (`/feed.xml`) holds the newest 20 posts of the home page.
 - The site follows the reader's system into dark mode, and prints without
   its menu and footer, with code wrapped.
