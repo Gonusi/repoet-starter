@@ -7,7 +7,12 @@ Copyright 2017 The Literata Project Authors (https://github.com/googlefonts/lite
 IBM Plex Mono (IBMPlexMono-*.woff2):
 Copyright © 2017 IBM Corp. with Reserved Font Name "Plex"
 
-Both are the latin subsets Google Fonts serves.
+All are the files Google Fonts serves (fonts.gstatic.com: Literata v40, IBM
+Plex Mono v20), unmodified: for each face a Latin subset (Literata-400-normal,
+Literata-400-italic, IBMPlexMono-400-normal, IBMPlexMono-400-italic,
+IBMPlexMono-600-normal) and a Latin Extended one (the same names ending in
+-latin-ext). Literata is a variable font, weights 400 to 900 in one file per
+style; Plex Mono has one file per weight.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

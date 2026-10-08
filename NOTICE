@@ -1,7 +1,9 @@
 Fonts (fonts/*.woff2): Literata, Copyright 2017 The Literata Project Authors,
 and IBM Plex Mono, Copyright 2017 IBM Corp. with Reserved Font Name "Plex".
 Both under the SIL Open Font License 1.1; the licence text and the copyright
-notices are in fonts/OFL.txt.
+notices are in fonts/OFL.txt. The files are Google Fonts' own, unmodified
+(Literata v40: regular and italic, variable weight; IBM Plex Mono v20: regular,
+italic and semibold), each as a Latin and a Latin Extended subset.
 
 This site's default theme is adapted from:
 
