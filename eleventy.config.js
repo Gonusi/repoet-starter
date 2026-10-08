@@ -9,6 +9,7 @@ import { feedPlugin } from '@11ty/eleventy-plugin-rss';
 import matter from 'gray-matter';
 
 import { resolveAddresses } from './_lib/addresses.js';
+import { footerHtml } from './_lib/footer.js';
 import { highlight } from './_lib/highlight.js';
 import { planMenu, readMenu } from './_lib/menu.js';
 import { shortIdFromPath } from './_lib/permalinks.js';
@@ -49,6 +50,12 @@ function isDraft(value) {
 export default function (eleventyConfig) {
   const blog = JSON.parse(readFileSync(new URL('./blog.json', import.meta.url), 'utf-8'));
   eleventyConfig.addGlobalData('blog', blog);
+
+  // The footer under every page (blog.json "footer", _lib/footer.js): one
+  // line of inline Markdown, HTML off. Missing: Repoet's credit; "": none.
+  const footer = footerHtml(blog.footer);
+  if (footer.warning) console.warn(`[repoet] ${footer.warning}`);
+  eleventyConfig.addGlobalData('footerHtml', footer.html);
 
   // The blog's absolute URL. The deploy workflow injects it (configure-pages
   // base_url), so custom domains just work and nothing goes stale. Empty in

@@ -58,7 +58,7 @@
     @font-face { font-family: 'Literata'; src: url('{{ '/fonts/Literata-600-normal.woff2' | url }}') format('woff2'); font-weight: 600; font-display: swap; }
     @font-face { font-family: 'IBM Plex Mono'; src: url('{{ '/fonts/IBMPlexMono-400-normal.woff2' | url }}') format('woff2'); font-weight: 400; font-display: swap; }
     :root {
-      --paper: #f5f4f0; --ink: #22251f; --ink-soft: #6e7268; --rule: #e6e4dc;
+      --paper: #f5f4f0; --ink: #22251f; --ink-soft: #6d7167; --rule: #e6e4dc;
       --green: #2e6e4e; --green-deep: #245a40; --green-tint: #eaf1ec;
       --serif: 'Literata', Georgia, serif;
       --mono: 'IBM Plex Mono', ui-monospace, monospace;
@@ -117,6 +117,12 @@
     .token.string, .token.char, .token.attr-value, .token.regex, .token.template-string, .token.url { color: var(--code-string); }
     .token.number, .token.boolean, .token.constant, .token.symbol, .token.entity, .token.deleted { color: var(--code-number); }
     .token.tag .token.punctuation, .token.attr-value .token.punctuation { color: inherit; }
+    /* The footer (blog.json "footer"): one quiet line under every page, in
+       the grey of dates. Its links are the blog's links, quieter: grey words
+       over the green underline. ink-soft is 4.5:1 on the paper (WCAG AA). */
+    body > footer { margin-top: 3rem; font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft); }
+    body > footer a { color: inherit; text-decoration-color: var(--green); }
+    body > footer a:hover { color: var(--green-deep); }
     :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
   </style>
 </head>
@@ -136,5 +142,8 @@
     {%- endif %}
   </header>
   <main>{{ content | safe }}</main>
+  {%- if footerHtml %}
+  <footer>{{ footerHtml | safe }}</footer>
+  {%- endif %}
 </body>
 </html>

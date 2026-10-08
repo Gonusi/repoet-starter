@@ -28,6 +28,7 @@ export const GROUPS = [
     'package-lock.json',
     'eleventy.config.js',
     '_lib/addresses.js',
+    '_lib/footer.js',
     '_lib/highlight.js',
     '_lib/menu.js',
     '_lib/permalinks.js',

@@ -74,6 +74,22 @@ Two things at one address (a menu `path`, a post's slug or hand-set
 come first, then hand-set permalinks, then slugs, then menu lists. The later
 one gets another address, and the build log says which (`[repoet] …`).
 
+## The footer
+
+One quiet line under every page comes from `footer` in `blog.json`. Repoet's
+Settings edits it, or write it by hand:
+
+```json
+"footer": "Written by Ada · [Feed](https://ada.example/feed.xml)"
+```
+
+- It is one line of Markdown: links `[text](https://…)`, `*emphasis*` and
+  `` `code` ``. HTML is shown as the text it is, never run; headings, lists
+  and images are not part of a line.
+- With no `footer`, the page says "Built on the shoulders of GitHub by
+  Repoet", linking to <https://repoet.dev>.
+- `"footer": ""` means no footer at all.
+
 ## Code
 
 Fenced code blocks with a language (```` ```js ````, ```` ```python ````,
